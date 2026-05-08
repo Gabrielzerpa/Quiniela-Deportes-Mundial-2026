@@ -37,6 +37,16 @@ export default async function HomePage() {
     .select("*")
     .single();
 
+  const { data: llaves } = await supabase
+    .from("llaves_eliminatorias")
+    .select("*")
+    .order("fecha", { ascending: true });
+
+  const { data: prediccionesElim } = await supabase
+    .from("predicciones_eliminatorias")
+    .select("*")
+    .eq("participante_id", user.id);
+
   return (
     <QuinielaApp
       participante={participante}
@@ -45,6 +55,9 @@ export default async function HomePage() {
       posiciones={posiciones || []}
       goleadores={goleadores || []}
       deadline={deadlines?.fase_grupos}
+      deadlineElim={deadlines?.fase_eliminatorias}
+      llaves={llaves || []}
+      prediccionesElimIniciales={prediccionesElim || []}
     />
   );
 }
