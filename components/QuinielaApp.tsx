@@ -380,12 +380,33 @@ export default function QuinielaApp({
                     </div>
                   </button>
                 ))}
+                <button onClick={() => !locked && handleGoleador("otro")} disabled={locked}
+                className={`flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all ${
+                  goleadorPick && !goleadores.find(g => g.nombre === goleadorPick)
+                    ? "bg-amber-400/15 border-amber-500/60"
+                    : "bg-stone-950/40 border-stone-900 hover:border-stone-800 disabled:opacity-40"
+                }`}>
+                <span className="text-lg">⚽</span>
+                <div>
+                  <div className="text-xs font-bold text-stone-200">Otro jugador</div>
+                  <div className="text-[10px] text-stone-500">Escribe el nombre</div>
+                </div>
+              </button>
               </div>
-              {goleadorPick && (
+              {goleadorPick && goleadores.find(g => g.nombre === goleadorPick) && (
                 <div className="mt-3 text-xs text-emerald-400 flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   Seleccionaste: <span className="font-bold">{goleadorPick}</span>
                 </div>
+              )}
+              {goleadorPick && !goleadores.find(g => g.nombre === goleadorPick) && (
+                <input
+                  type="text"
+                  placeholder="Nombre del jugador..."
+                  defaultValue={goleadorPick}
+                  onBlur={e => e.target.value.trim() && handleGoleador(e.target.value.trim())}
+                  className="mt-3 w-full bg-stone-950/60 border border-amber-700/40 rounded-lg px-4 py-2.5 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500/60"
+                />
               )}
             </div>
           </div>
