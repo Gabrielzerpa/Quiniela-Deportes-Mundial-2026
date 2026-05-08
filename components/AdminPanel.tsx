@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Trophy, ArrowLeft, Check, Clock, Users, Target } from "lucide-react";
+import { Trophy, ArrowLeft, Check, Clock, Users, Target, Trash2, DollarSign, ChevronDown, ChevronUp, Eye } from "lucide-react";
 import Link from "next/link";
 
 type Partido = {
@@ -10,7 +10,11 @@ type Partido = {
   equipo_local: string; equipo_visitante: string; estadio: string; resultado: string | null;
 };
 type Participante = {
-  id: string; nombre: string; aciertos_total: number; acerto_goleador: number;
+  id: string; nombre: string; email: string; aciertos_total: number;
+  acerto_goleador: number; goleador_pick: string | null;
+};
+type PrediccionDetalle = {
+  partido_id: string; prediccion: string;
 };
 
 interface Props {
@@ -45,20 +49,28 @@ const TEAMS: Record<string, { name: string; flag: string }> = {
   GHA: { name: "Ghana", flag: "🇬🇭" }, PAN: { name: "Panamá", flag: "🇵🇦" },
 };
 
-export default function AdminPanel({ partidos: partidosIniciales, participantes }: Props) {
+export default function AdminPanel({ partidos: partidosIniciales, participantes: participantesIniciales }: Props) {
+  const [tab, setTab] = useState<"resultados" | "participantes" | "eliminatorias">("resultados");
   const [partidos, setPartidos] = useState(partidosIniciales);
+  const [participantes, setParticipantes] = useState(
+    participantesIniciales.map(p => ({ ...p, pagado: false }))
+  );
   const [saving, setSaving] = useState<string | null>(null);
   const [filterGrupo, setFilterGrupo] = useState("ALL");
   const [filterPendiente, setFilterPendiente] = useState(false);
+  const [expandedParticipante, setExpandedParticipante] = useState<string | null>(null);
+  const [prediccionesDetalle, setPrediccionesDetalle] = useState<Record<string, PrediccionDetalle[]>>({});
+  const [loadingPreds, setLoadingPreds] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const supabase = createClient();
 
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = partidos
     .filter(p => filterGrupo === "ALL" || p.grupo === filterGrupo)
     .filter(p => !filterPendiente || p.resultado === null);
-
   const totalJugados = partidos.filter(p => p.resultado !== null).length;
   const totalPendientes = partidos.filter(p => p.resultado === null).length;
+  const totalPagados = participantes.filter(p => p.pagado).length;
 
   const handleResultado = async (partidoId: string, resultado: string) => {
     setSaving(partidoId);
@@ -75,12 +87,58 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes 
     setSaving(null);
   };
 
+  const togglePagado = async (participanteId: string) => {
+    const { error } = await supabase
+      .from("participantes")
+      .update({ pagado: !participantes.find(p => p.id === participanteId)?.pagado })
+      .eq("id", participanteId);
+    if (!error) {
+      setParticipantes(prev => prev.map(p =>
+        p.id === participanteId ? { ...p, pagado: !p.pagado } : p
+      ));
+    }
+  };
+
+  const handleEliminar = async (participanteId: string) => {
+    const { error } = await supabase
+      .from("participantes")
+      .delete()
+      .eq("id", participanteId);
+    if (!error) {
+      setParticipantes(prev => prev.filter(p => p.id !== participanteId));
+      setConfirmDelete(null);
+    }
+  };
+
+  const loadPredicciones = async (participanteId: string) => {
+    if (expandedParticipante === participanteId) {
+      setExpandedParticipante(null);
+      return;
+    }
+    setExpandedParticipante(participanteId);
+    if (prediccionesDetalle[participanteId]) return;
+    setLoadingPreds(participanteId);
+    const { data } = await supabase
+      .from("predicciones_grupos")
+      .select("partido_id, prediccion")
+      .eq("participante_id", participanteId);
+    if (data) setPrediccionesDetalle(prev => ({ ...prev, [participanteId]: data }));
+    setLoadingPreds(null);
+  };
+
+  const tabs = [
+    { key: "resultados", label: "Resultados", icon: Check },
+    { key: "participantes", label: "Participantes", icon: Users },
+    { key: "eliminatorias", label: "Eliminatorias", icon: Target },
+  ];
+
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "system-ui, sans-serif" }}>
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/[0.04] rounded-full blur-3xl" />
       </div>
 
+      {/* HEADER */}
       <header className="border-b border-stone-900 bg-stone-950/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -96,132 +154,178 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes 
                   QUINIELA<span className="text-amber-400">26</span>
                   <span className="ml-2 text-[10px] bg-amber-400/20 text-amber-300 border border-amber-700/40 px-2 py-0.5 rounded font-bold tracking-wider">ADMIN</span>
                 </div>
-                <div className="text-[9px] text-stone-500 tracking-widest">Panel de resultados</div>
+                <div className="text-[9px] text-stone-500 tracking-widest">Panel de administración</div>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900/60 border border-stone-800 rounded-lg">
               <Check size={12} className="text-emerald-400" />
               <span className="text-xs font-bold text-stone-200">{totalJugados}</span>
               <span className="text-[10px] text-stone-500">jugados</span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900/60 border border-stone-800 rounded-lg">
-              <Clock size={12} className="text-amber-400" />
-              <span className="text-xs font-bold text-stone-200">{totalPendientes}</span>
-              <span className="text-[10px] text-stone-500">pendientes</span>
+              <DollarSign size={12} className="text-amber-400" />
+              <span className="text-xs font-bold text-stone-200">{totalPagados}/{participantes.length}</span>
+              <span className="text-[10px] text-stone-500">pagados</span>
             </div>
           </div>
+        </div>
+        <div className="max-w-5xl mx-auto px-4 flex gap-1 border-t border-stone-900">
+          {tabs.map(({ key, label, icon: Icon }) => (
+            <button key={key} onClick={() => setTab(key as typeof tab)}
+              className={`relative px-4 py-2.5 font-bold text-xs tracking-wide flex items-center gap-1.5 transition-colors ${tab === key ? "text-stone-100" : "text-stone-500 hover:text-stone-300"}`}>
+              <Icon size={13} />{label}
+              {tab === key && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-600" />}
+            </button>
+          ))}
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-3 gap-3 mb-6">
+
+        {/* STATS */}
+        <div className="grid grid-cols-4 gap-3 mb-6">
           <div className="bg-stone-900/40 border border-stone-800 rounded-xl p-4 text-center">
             <div className="text-2xl font-black text-amber-400">{participantes.length}</div>
             <div className="text-xs text-stone-400 mt-1 flex items-center justify-center gap-1"><Users size={11} />Participantes</div>
           </div>
+          <div className="bg-stone-900/40 border border-emerald-800/30 rounded-xl p-4 text-center">
+            <div className="text-2xl font-black text-emerald-400">{totalPagados}</div>
+            <div className="text-xs text-stone-400 mt-1 flex items-center justify-center gap-1"><DollarSign size={11} />Pagados</div>
+          </div>
           <div className="bg-stone-900/40 border border-stone-800 rounded-xl p-4 text-center">
-            <div className="text-2xl font-black text-emerald-400">{totalJugados}</div>
-            <div className="text-xs text-stone-400 mt-1 flex items-center justify-center gap-1"><Check size={11} />Cargados</div>
+            <div className="text-2xl font-black text-blue-400">{totalJugados}</div>
+            <div className="text-xs text-stone-400 mt-1 flex items-center justify-center gap-1"><Check size={11} />Jugados</div>
           </div>
           <div className="bg-stone-900/40 border border-stone-800 rounded-xl p-4 text-center">
             <div className="text-2xl font-black text-stone-300">{totalPendientes}</div>
-            <div className="text-xs text-stone-400 mt-1 flex items-center justify-center gap-1"><Clock size={11} />Por jugar</div>
+            <div className="text-xs text-stone-400 mt-1 flex items-center justify-center gap-1"><Clock size={11} />Pendientes</div>
           </div>
         </div>
 
-        {participantes.length > 0 && (
-          <div className="bg-stone-900/40 border border-stone-800 rounded-2xl p-4 mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Target size={14} className="text-amber-400" />
-              <span className="text-xs font-bold text-stone-200 uppercase tracking-wider">Posiciones actuales</span>
+        {/* TAB: RESULTADOS */}
+        {tab === "resultados" && (
+          <div>
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1">
+                {grupos.map(g => (
+                  <button key={g} onClick={() => setFilterGrupo(g)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0 border transition-all ${
+                      filterGrupo === g ? "bg-amber-400 text-stone-900 border-transparent" : "bg-stone-900/60 text-stone-400 border-stone-800 hover:border-stone-700"
+                    }`}>
+                    {g === "ALL" ? "Todos" : `Grupo ${g}`}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setFilterPendiente(!filterPendiente)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex-shrink-0 ${
+                  filterPendiente ? "bg-amber-400/20 text-amber-300 border-amber-700/40" : "bg-stone-900/60 text-stone-400 border-stone-800"
+                }`}>
+                Solo pendientes
+              </button>
             </div>
-            <div className="space-y-1.5">
-              {participantes.slice(0, 5).map((p, idx) => (
-                <div key={p.id} className="flex items-center gap-3 text-sm">
-                  <div className="w-6 text-center font-black text-stone-500 text-xs">{idx + 1}</div>
-                  <div className="flex-1 font-medium text-stone-200 truncate">{p.nombre}</div>
-                  <div className="font-mono font-bold text-emerald-400">{p.aciertos_total}</div>
-                  {p.acerto_goleador === 1 && <span className="text-amber-400 text-xs">⚽</span>}
-                </div>
-              ))}
+            <div className="grid md:grid-cols-2 gap-3">
+              {partidosFiltrados.map(partido => {
+                const home = TEAMS[partido.equipo_local];
+                const away = TEAMS[partido.equipo_visitante];
+                const fecha = new Date(partido.fecha).toLocaleDateString("es-MX", {
+                  day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                  timeZone: "America/Mexico_City"
+                });
+                return (
+                  <div key={partido.id} className={`bg-stone-900/40 border rounded-2xl p-4 ${partido.resultado ? "border-emerald-800/30" : "border-stone-800/60"}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-[10px] text-stone-500 flex items-center gap-2">
+                        <span className="font-bold text-stone-400">Grupo {partido.grupo}</span>
+                        <span>·</span><span>{fecha}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {saving === partido.id && <div className="w-3 h-3 border border-amber-400 border-t-transparent rounded-full animate-spin" />}
+                        {partido.resultado && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-400">✓ Cargado</span>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 mb-3">
+                      <div className="text-right">
+                        <div className="text-xl mb-0.5">{home?.flag}</div>
+                        <div className="font-bold text-xs text-stone-100">{home?.name}</div>
+                      </div>
+                      <div className="text-stone-700 font-mono text-xs">vs</div>
+                      <div className="text-left">
+                        <div className="text-xl mb-0.5">{away?.flag}</div>
+                        <div className="font-bold text-xs text-stone-100">{away?.name}</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {[
+                        { val: "1", label: `Gana ${partido.equipo_local}` },
+                        { val: "X", label: "Empate" },
+                        { val: "2", label: `Gana ${partido.equipo_visitante}` },
+                      ].map(({ val, label }) => (
+                        <button key={val} onClick={() => handleResultado(partido.id, val)} disabled={saving === partido.id}
+                          className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all border ${
+                            partido.resultado === val
+                              ? "bg-emerald-400 text-stone-900 border-transparent shadow-md"
+                              : "bg-stone-950/60 text-stone-400 border-stone-800 hover:border-stone-700 hover:text-stone-200"
+                          }`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {partido.estadio && <div className="text-[10px] text-stone-600 mt-2 text-center truncate">{partido.estadio}</div>}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1">
-            {grupos.map(g => (
-              <button key={g} onClick={() => setFilterGrupo(g)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0 border transition-all ${
-                  filterGrupo === g ? "bg-amber-400 text-stone-900 border-transparent" : "bg-stone-900/60 text-stone-400 border-stone-800 hover:border-stone-700"
-                }`}>
-                {g === "ALL" ? "Todos" : `Grupo ${g}`}
-              </button>
-            ))}
-          </div>
-          <button onClick={() => setFilterPendiente(!filterPendiente)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex-shrink-0 ${
-              filterPendiente ? "bg-amber-400/20 text-amber-300 border-amber-700/40" : "bg-stone-900/60 text-stone-400 border-stone-800"
-            }`}>
-            Solo pendientes
-          </button>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-3">
-          {partidosFiltrados.map(partido => {
-            const home = TEAMS[partido.equipo_local];
-            const away = TEAMS[partido.equipo_visitante];
-            const fecha = new Date(partido.fecha).toLocaleDateString("es-MX", {
-              day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-              timeZone: "America/Mexico_City"
-            });
-            return (
-              <div key={partido.id} className={`bg-stone-900/40 border rounded-2xl p-4 ${partido.resultado ? "border-emerald-800/30" : "border-stone-800/60"}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-[10px] text-stone-500 flex items-center gap-2">
-                    <span className="font-bold text-stone-400">Grupo {partido.grupo}</span>
-                    <span>·</span><span>{fecha}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {saving === partido.id && <div className="w-3 h-3 border border-amber-400 border-t-transparent rounded-full animate-spin" />}
-                    {partido.resultado && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-400">✓ Cargado</span>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 mb-3">
-                  <div className="text-right">
-                    <div className="text-xl mb-0.5">{home?.flag}</div>
-                    <div className="font-bold text-xs text-stone-100">{home?.name}</div>
-                  </div>
-                  <div className="text-stone-700 font-mono text-xs">vs</div>
-                  <div className="text-left">
-                    <div className="text-xl mb-0.5">{away?.flag}</div>
-                    <div className="font-bold text-xs text-stone-100">{away?.name}</div>
-                  </div>
-                </div>
-                <div className="flex gap-1.5">
-                  {[
-                    { val: "1", label: `Gana ${partido.equipo_local}` },
-                    { val: "X", label: "Empate" },
-                    { val: "2", label: `Gana ${partido.equipo_visitante}` },
-                  ].map(({ val, label }) => (
-                    <button key={val} onClick={() => handleResultado(partido.id, val)} disabled={saving === partido.id}
-                      className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all border ${
-                        partido.resultado === val
-                          ? "bg-emerald-400 text-stone-900 border-transparent shadow-md"
-                          : "bg-stone-950/60 text-stone-400 border-stone-800 hover:border-stone-700 hover:text-stone-200"
-                      }`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {partido.estadio && <div className="text-[10px] text-stone-600 mt-2 text-center truncate">{partido.estadio}</div>}
+        {/* TAB: PARTICIPANTES */}
+        {tab === "participantes" && (
+          <div className="space-y-3">
+            {participantes.length === 0 && (
+              <div className="text-center py-16 text-stone-500">
+                <Users size={32} className="mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No hay participantes registrados aún.</p>
               </div>
-            );
-          })}
-        </div>
-      </main>
-    </div>
-  );
-}
+            )}
+            {participantes.map((p, idx) => {
+              const predsCount = prediccionesDetalle[p.id]?.length ?? "—";
+              const isExpanded = expandedParticipante === p.id;
+              return (
+                <div key={p.id} className="bg-stone-900/40 border border-stone-800/60 rounded-2xl overflow-hidden">
+                  <div className="p-4 flex items-center gap-3">
+                    {/* Rank */}
+                    <div className="w-8 h-8 rounded-lg bg-stone-900 border border-stone-800 flex items-center justify-center font-black text-xs text-stone-400 flex-shrink-0">
+                      {idx + 1}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm text-stone-100">{p.nombre}</div>
+                      <div className="text-xs text-stone-500 truncate">{p.email}</div>
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        <span className="text-[10px] text-stone-400">
+                          <span className="font-bold text-emerald-400">{p.aciertos_total}</span> aciertos
+                        </span>
+                        {p.goleador_pick && (
+                          <span className="text-[10px] text-stone-400">
+                            ⚽ <span className="text-amber-300">{p.goleador_pick}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pagado toggle */}
+                    <button
+                      onClick={() => togglePagado(p.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-bold text-xs transition-all flex-shrink-0 ${
+                        p.pagado
+                          ? "bg-emerald-400/20 border-emerald-700/40 text-emerald-300"
+                          : "bg-stone-950/60 border-stone-800 text-stone-500 hover:border-stone-700"
+                      }`}>
+                      <DollarSign size={12} />
+                      {p.pagado ? "Pagó" : "Pendiente"}
+                    </button>
+
+                    {/* Ver predic
