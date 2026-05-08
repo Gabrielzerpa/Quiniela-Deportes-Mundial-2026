@@ -328,4 +328,99 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
                       {p.pagado ? "Pagó" : "Pendiente"}
                     </button>
 
-                    {/* Ver predic
+                    {/* Ver predicciones */}
+                    <button onClick={() => loadPredicciones(p.id)}
+                      className="p-2 text-stone-500 hover:text-amber-400 transition flex-shrink-0">
+                      {loadingPreds === p.id
+                        ? <div className="w-4 h-4 border border-amber-400 border-t-transparent rounded-full animate-spin" />
+                        : isExpanded ? <ChevronUp size={16} /> : <Eye size={16} />
+                      }
+                    </button>
+
+                    {/* Eliminar */}
+                    {confirmDelete === p.id ? (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button onClick={() => handleEliminar(p.id)}
+                          className="px-2 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-500 transition">
+                          Confirmar
+                        </button>
+                        <button onClick={() => setConfirmDelete(null)}
+                          className="px-2 py-1 bg-stone-800 text-stone-300 rounded-lg text-xs font-bold hover:bg-stone-700 transition">
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmDelete(p.id)}
+                        className="p-2 text-stone-600 hover:text-red-400 transition flex-shrink-0">
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Predicciones expandidas */}
+                  {isExpanded && (
+                    <div className="border-t border-stone-800/60 px-4 py-3 bg-stone-950/40">
+                      <div className="text-[10px] font-bold tracking-widest text-stone-500 uppercase mb-2">
+                        Predicciones de fase de grupos
+                      </div>
+                      {prediccionesDetalle[p.id]?.length === 0 ? (
+                        <p className="text-xs text-stone-500">No ha llenado predicciones aún.</p>
+                      ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                          {prediccionesDetalle[p.id]?.map(pred => {
+                            const partido = partidos.find(pa => pa.id === pred.partido_id);
+                            if (!partido) return null;
+                            const esAcierto = partido.resultado && partido.resultado === pred.prediccion;
+                            const esFallo = partido.resultado && partido.resultado !== pred.prediccion;
+                            return (
+                              <div key={pred.partido_id}
+                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs ${
+                                  esAcierto ? "bg-emerald-950/40 border-emerald-800/40" :
+                                  esFallo ? "bg-red-950/30 border-red-900/40" :
+                                  "bg-stone-900/40 border-stone-800/40"
+                                }`}>
+                                <span className="text-stone-400 font-mono text-[10px]">{pred.partido_id}</span>
+                                <span className="flex-1 text-stone-300">
+                                  {pred.prediccion === "1" ? TEAMS[partido.equipo_local]?.name :
+                                   pred.prediccion === "2" ? TEAMS[partido.equipo_visitante]?.name :
+                                   "Empate"}
+                                </span>
+                                {esAcierto && <span className="text-emerald-400">✓</span>}
+                                {esFallo && <span className="text-red-400">✗</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* TAB: ELIMINATORIAS */}
+        {tab === "eliminatorias" && (
+          <div>
+            <div className="bg-purple-950/20 border border-purple-800/30 rounded-2xl p-5 mb-6">
+              <h3 className="font-bold text-purple-200 mb-2">¿Cuándo usar esta sección?</h3>
+              <p className="text-sm text-stone-400 leading-relaxed">
+                Una vez que termine la fase de grupos (27 jun), aquí defines las 16 llaves de dieciseisavos
+                con los equipos clasificados. Los participantes podrán llenar sus predicciones hasta el
+                primer partido de 16vos.
+              </p>
+            </div>
+
+            <div className="text-center py-12 text-stone-500 border border-stone-800/40 border-dashed rounded-2xl">
+              <Target size={36} className="mx-auto mb-3 opacity-20" />
+              <p className="text-sm font-bold text-stone-400 mb-1">Disponible a partir del 27 de junio</p>
+              <p className="text-xs">Cuando terminen los 72 partidos de grupos, vuelve aquí para definir las llaves.</p>
+            </div>
+          </div>
+        )}
+
+      </main>
+    </div>
+  );
+}
