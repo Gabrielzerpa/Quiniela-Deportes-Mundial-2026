@@ -22,9 +22,15 @@ type Llave = {
 type PrediccionDetalle = { partido_id: string; prediccion: string };
 
 interface Props {
+  participante: { id: string; nombre: string; email: string; es_admin: boolean; goleador_pick: string | null };
   partidos: Partido[];
-  participantes: Participante[];
+  prediccionesIniciales: { partido_id: string; prediccion: string }[];
+  posiciones: { id: string; nombre: string; aciertos_grupos: number; aciertos_eliminatorias: number; aciertos_total: number; acerto_goleador: number }[];
+  goleadores: { id: string; nombre: string; equipo: string }[];
+  deadline: string;
+  deadlineElim: string;
   llaves: Llave[];
+  prediccionesElimIniciales: { llave_id: string; equipo_pick: string }[];
 }
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
