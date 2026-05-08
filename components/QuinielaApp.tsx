@@ -400,13 +400,29 @@ export default function QuinielaApp({
                 </div>
               )}
               {goleadorPick && !goleadores.find(g => g.nombre === goleadorPick) && (
-                <input
-                  type="text"
-                  placeholder="Nombre del jugador..."
-                  defaultValue={goleadorPick}
-                  onBlur={e => e.target.value.trim() && handleGoleador(e.target.value.trim())}
-                  className="mt-3 w-full bg-stone-950/60 border border-amber-700/40 rounded-lg px-4 py-2.5 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500/60"
-                />
+                <div className="mt-3 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nombre del jugador..."
+                    defaultValue={goleadorPick === "otro" ? "" : goleadorPick}
+                    id="custom-scorer"
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        const val = (e.target as HTMLInputElement).value.trim();
+                        if (val) handleGoleador(val);
+                      }
+                    }}
+                    className="flex-1 bg-stone-950/60 border border-amber-700/40 rounded-lg px-4 py-2.5 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500/60"
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById("custom-scorer") as HTMLInputElement;
+                      if (input?.value.trim()) handleGoleador(input.value.trim());
+                    }}
+                    className="px-4 py-2.5 bg-amber-400 text-stone-900 rounded-lg font-bold text-xs hover:bg-amber-300 transition">
+                    Guardar
+                  </button>
+                </div>
               )}
             </div>
           </div>
