@@ -25,10 +25,16 @@ export default async function AdminPage() {
     .from("tabla_posiciones")
     .select("*");
 
+  const { data: llaves } = await supabase
+    .from("llaves_eliminatorias")
+    .select("*")
+    .order("fecha", { ascending: true });
+
   return (
     <AdminPanel
       partidos={partidos || []}
       participantes={participantes || []}
+      llaves={llaves || []}
     />
   );
 }
