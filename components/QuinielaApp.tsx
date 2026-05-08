@@ -304,3 +304,136 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
                     ) : (
                       <button onClick={() => setConfirmDelete(p.id)} className="p-2 text-stone-600 hover:text-red-400 transition flex-shrink-0"><Trash2 size={15} /></button>
                     )}
+                  </div>
+                  {isExpanded && (
+                    <div className="border-t border-stone-800/60 px-4 py-3 bg-stone-950/40">
+                      <div className="text-[10px] font-bold tracking-widest text-stone-500 uppercase mb-2">Predicciones de fase de grupos</div>
+                      {prediccionesDetalle[p.id]?.length === 0 ? (
+                        <p className="text-xs text-stone-500">No ha llenado predicciones aún.</p>
+                      ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                          {prediccionesDetalle[p.id]?.map(pred => {
+                            const partido = partidos.find(pa => pa.id === pred.partido_id);
+                            if (!partido) return null;
+                            const esAcierto = partido.resultado && partido.resultado === pred.prediccion;
+                            const esFallo = partido.resultado && partido.resultado !== pred.prediccion;
+                            return (
+                              <div key={pred.partido_id} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs ${esAcierto ? "bg-emerald-950/40 border-emerald-800/40" : esFallo ? "bg-red-950/30 border-red-900/40" : "bg-stone-900/40 border-stone-800/40"}`}>
+                                <span className="text-stone-400 font-mono text-[10px]">{pred.partido_id}</span>
+                                <span className="flex-1 text-stone-300 truncate">
+                                  {pred.prediccion === "1" ? TEAMS[partido.equipo_local]?.name : pred.prediccion === "2" ? TEAMS[partido.equipo_visitante]?.name : "Empate"}
+                                </span>
+                                {esAcierto && <span className="text-emerald-400">✓</span>}
+                                {esFallo && <span className="text-red-400">✗</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* TAB: ELIMINATORIAS */}
+        {tab === "eliminatorias" && (
+          <div>
+            <div className="bg-amber-950/20 border border-amber-800/30 rounded-2xl p-4 mb-5">
+              <p className="text-xs text-stone-300 leading-relaxed">
+                <span className="font-bold text-amber-300">Para cada llave:</span> primero define los equipos (botón ✏️), luego cuando se juegue el partido marca quién pasó. Los participantes verán los equipos y podrán predecir una vez que los definas.
+              </p>
+            </div>
+
+            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-5">
+              {RONDAS.map(r => (
+                <button key={r} onClick={() => setActiveRonda(r)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0 border transition-all ${activeRonda === r ? "bg-amber-400 text-stone-900 border-transparent" : "bg-stone-900/60 text-stone-400 border-stone-800 hover:border-stone-700"}`}>
+                  {r === "16vos" ? "16vos" : r === "8vos" ? "Octavos" : r === "4tos" ? "Cuartos" : r === "semi" ? "Semis" : "Final"}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-3">
+              {llavesRonda.map(llave => {
+                const definida = !!(llave.equipo_local && llave.equipo_visitante);
+                const isEditing = editingLlave === llave.id;
+                const localTeam = llave.equipo_local ? TEAMS[llave.equipo_local] : null;
+                const visitanteTeam = llave.equipo_visitante ? TEAMS[llave.equipo_visitante] : null;
+                const fecha = new Date(llave.fecha).toLocaleDateString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Mexico_City" });
+
+                return (
+                  <div key={llave.id} className={`bg-stone-900/40 border rounded-2xl p-4 ${definida ? "border-stone-800/60" : "border-stone-800/30"} ${llave.ganador ? "border-emerald-800/30" : ""}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-[10px] text-stone-500 flex items-center gap-2">
+                        <span className="font-bold text-purple-400">{llave.id}</span>
+                        <span>·</span><span>{fecha}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {saving === llave.id && <div className="w-3 h-3 border border-amber-400 border-t-transparent rounded-full animate-spin" />}
+                        {llave.ganador && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-400">✓ {TEAMS[llave.ganador]?.name || llave.ganador}</span>}
+                        <button onClick={() => { setEditingLlave(isEditing ? null : llave.id); setLlaveLocal(llave.equipo_local || ""); setLlaveVisitante(llave.equipo_visitante || ""); }}
+                          className="text-[10px] px-2 py-1 bg-stone-800 text-stone-300 rounded-lg hover:bg-stone-700 transition font-bold">
+                          {isEditing ? "Cancelar" : definida ? "✏️ Editar" : "✏️ Definir"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <div>
+                          <div className="text-[10px] text-stone-500 mb-1 uppercase tracking-wider">Equipo local</div>
+                          <select value={llaveLocal} onChange={e => setLlaveLocal(e.target.value)}
+                            className="w-full bg-stone-950/60 border border-stone-800 rounded-lg px-3 py-2 text-sm text-stone-100 focus:outline-none focus:border-amber-500/60">
+                            <option value="">Selecciona...</option>
+                            {TEAM_OPTIONS.map(t => <option key={t.code} value={t.code}>{t.flag} {t.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-stone-500 mb-1 uppercase tracking-wider">Equipo visitante</div>
+                          <select value={llaveVisitante} onChange={e => setLlaveVisitante(e.target.value)}
+                            className="w-full bg-stone-950/60 border border-stone-800 rounded-lg px-3 py-2 text-sm text-stone-100 focus:outline-none focus:border-amber-500/60">
+                            <option value="">Selecciona...</option>
+                            {TEAM_OPTIONS.map(t => <option key={t.code} value={t.code}>{t.flag} {t.name}</option>)}
+                          </select>
+                        </div>
+                        <button onClick={() => handleDefinirLlave(llave.id)} disabled={!llaveLocal || !llaveVisitante || saving === llave.id}
+                          className="w-full py-2 bg-amber-400 text-stone-900 rounded-lg font-bold text-xs hover:bg-amber-300 transition disabled:opacity-50">
+                          Guardar equipos
+                        </button>
+                      </div>
+                    ) : definida ? (
+                      <>
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 mb-3">
+                          <div className="text-right"><div className="text-xl mb-0.5">{localTeam?.flag}</div><div className="font-bold text-xs text-stone-100">{localTeam?.name}</div></div>
+                          <div className="text-stone-700 font-mono text-xs">vs</div>
+                          <div className="text-left"><div className="text-xl mb-0.5">{visitanteTeam?.flag}</div><div className="font-bold text-xs text-stone-100">{visitanteTeam?.name}</div></div>
+                        </div>
+                        <div className="flex gap-1.5">
+                          {[{ val: llave.equipo_local!, team: localTeam }, { val: llave.equipo_visitante!, team: visitanteTeam }].map(({ val, team }) => (
+                            <button key={val} onClick={() => handleGanadorLlave(llave.id, val)} disabled={saving === llave.id}
+                              className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all border ${llave.ganador === val ? "bg-emerald-400 text-stone-900 border-transparent shadow-md" : "bg-stone-950/60 text-stone-400 border-stone-800 hover:border-stone-700 hover:text-stone-200"}`}>
+                              Pasa {team?.name || val}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="py-3 text-center">
+                        <div className="text-xs text-stone-500 font-mono">{llave.placeholder_local} vs {llave.placeholder_visitante}</div>
+                        <div className="text-[10px] text-stone-600 mt-1">Usa ✏️ Definir cuando se conozcan los equipos</div>
+                      </div>
+                    )}
+                    {llave.estadio && <div className="text-[10px] text-stone-600 mt-2 text-center truncate">{llave.estadio}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
