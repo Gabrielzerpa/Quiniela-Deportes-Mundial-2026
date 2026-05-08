@@ -7,7 +7,7 @@ import { Trophy, Mail, Loader2, CheckCircle2, Lock } from "lucide-react";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"magic" | "password">("password");
+  const [mode, setMode] = useState<"magic" | "password">("magic");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
