@@ -6,17 +6,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Mapeo de IDs de API-Football a códigos de equipos
 const TEAM_MAP: Record<number, string> = {
   1: "MEX", 494: "RSA", 732: "KOR", 24: "CZE",
   6: "BRA", 195: "MAR", 514: "HAI", 1181: "SCO",
   21: "USA", 775: "PAR", 25: "AUS", 737: "SWE",
   773: "GER", 1631: "CUW", 492: "CIV", 730: "ECU",
   5: "NED", 827: "JPN", 791: "TUR", 202: "TUN",
-  9: "BEL", 21: "EGY", 796: "IRN", 1186: "NZL",
-  9: "ESP", 940: "CPV", 786: "KSA", 868: "URU",
+  9: "BEL", 34: "EGY", 796: "IRN", 1186: "NZL",
+  29: "ESP", 940: "CPV", 786: "KSA", 868: "URU",
   2: "FRA", 608: "SEN", 1569: "COD", 1118: "NOR",
-  26: "ARG", 1050: "ALG", 776: "AUT", 796: "JOR",
+  26: "ARG", 1050: "ALG", 776: "AUT", 801: "JOR",
   27: "POR", 2417: "UZB", 826: "COL", 1567: "IRQ",
   10: "ENG", 762: "CRO", 811: "GHA", 780: "PAN",
   3: "CAN", 1527: "BIH", 788: "QAT", 15: "SUI",
