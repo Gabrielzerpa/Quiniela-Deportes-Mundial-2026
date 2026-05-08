@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Trophy, Lock, Clock, Users, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut } from "lucide-react";
+import { Trophy, Lock, Clock, Users, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut, ChevronRight } from "lucide-react";
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
   MEX: { name: "México", flag: "🇲🇽" }, RSA: { name: "Sudáfrica", flag: "🇿🇦" },
@@ -36,11 +36,18 @@ type Partido = {
   equipo_local: string; equipo_visitante: string; estadio: string; resultado: string | null;
 };
 type Prediccion = { partido_id: string; prediccion: string };
+type PrediccionElim = { llave_id: string; equipo_pick: string };
 type Posicion = {
   id: string; nombre: string; aciertos_grupos: number;
   aciertos_eliminatorias: number; aciertos_total: number; acerto_goleador: number;
 };
 type Goleador = { id: string; nombre: string; equipo: string };
+type Llave = {
+  id: string; ronda: string; fecha: string;
+  equipo_local: string | null; equipo_visitante: string | null;
+  placeholder_local: string; placeholder_visitante: string;
+  ganador: string | null; estadio: string;
+};
 
 interface Props {
   participante: { id: string; nombre: string; email: string; es_admin: boolean; goleador_pick: string | null };
@@ -49,6 +56,9 @@ interface Props {
   posiciones: Posicion[];
   goleadores: Goleador[];
   deadline: string;
+  deadlineElim: string;
+  llaves: Llave[];
+  prediccionesElimIniciales: PrediccionElim[];
 }
 
 function useCountdown(target: string) {
@@ -71,18 +81,35 @@ function useCountdown(target: string) {
   return time;
 }
 
-export default function QuinielaApp({ participante, partidos, prediccionesIniciales, posiciones, goleadores, deadline }: Props) {
-  const [tab, setTab] = useState<"groups" | "leaderboard">("groups");
+const RONDAS = [
+  { key: "16vos", label: "16vos de Final" },
+  { key: "8vos", label: "Octavos" },
+  { key: "4tos", label: "Cuartos" },
+  { key: "semi", label: "Semifinales" },
+  { key: "final", label: "Final" },
+];
+
+export default function QuinielaApp({
+  participante, partidos, prediccionesIniciales, posiciones,
+  goleadores, deadline, deadlineElim, llaves, prediccionesElimIniciales
+}: Props) {
+  const [tab, setTab] = useState<"groups" | "knockout" | "leaderboard">("groups");
   const [preds, setPreds] = useState<Record<string, string>>(
     Object.fromEntries(prediccionesIniciales.map(p => [p.partido_id, p.prediccion]))
+  );
+  const [predsElim, setPredsElim] = useState<Record<string, string>>(
+    Object.fromEntries(prediccionesElimIniciales.map(p => [p.llave_id, p.equipo_pick]))
   );
   const [goleadorPick, setGoleadorPick] = useState(participante.goleador_pick || "");
   const [saving, setSaving] = useState<string | null>(null);
   const [showOthers, setShowOthers] = useState(false);
   const [filterGrupo, setFilterGrupo] = useState("ALL");
+  const [activeRonda, setActiveRonda] = useState("16vos");
   const countdown = useCountdown(deadline);
+  const countdownElim = useCountdown(deadlineElim);
   const supabase = createClient();
   const locked = countdown.expired;
+  const lockedElim = countdownElim.expired;
 
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = filterGrupo === "ALL" ? partidos : partidos.filter(p => p.grupo === filterGrupo);
@@ -100,6 +127,28 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
     setSaving(null);
   }, [locked, participante.id]);
 
+  const handlePredictElim = useCallback(async (llaveId: string, equipoPick: string) => {
+    if (lockedElim) return;
+    const current = predsElim[llaveId];
+    const newPick = current === equipoPick ? "" : equipoPick;
+    setPredsElim(prev => ({ ...prev, [llaveId]: newPick }));
+    setSaving(llaveId);
+    if (newPick) {
+      await supabase.from("predicciones_eliminatorias").upsert({
+        participante_id: participante.id,
+        llave_id: llaveId,
+        equipo_pick: newPick,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "participante_id,llave_id" });
+    } else {
+      await supabase.from("predicciones_eliminatorias")
+        .delete()
+        .eq("participante_id", participante.id)
+        .eq("llave_id", llaveId);
+    }
+    setSaving(null);
+  }, [lockedElim, participante.id]);
+
   const handleGoleador = async (nombre: string) => {
     setGoleadorPick(nombre);
     await supabase.from("participantes").update({ goleador_pick: nombre }).eq("id", participante.id);
@@ -108,6 +157,7 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
   const totalPreds = Object.keys(preds).length;
   const completion = partidos.length > 0 ? Math.round((totalPreds / partidos.length) * 100) : 0;
   const miPosicion = posiciones.findIndex(p => p.id === participante.id) + 1;
+  const llavesRonda = llaves.filter(l => l.ronda === activeRonda);
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -129,7 +179,23 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!locked ? (
+            {tab === "knockout" ? (
+              !lockedElim ? (
+                <div className="bg-stone-900/60 border border-stone-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
+                  <Clock size={12} className="text-purple-400" />
+                  <span className="font-mono text-xs text-stone-100">
+                    <span className="text-purple-400 font-bold">{countdownElim.days}</span>d{" "}
+                    <span className="text-purple-400 font-bold">{countdownElim.hours}</span>h{" "}
+                    <span className="text-purple-400 font-bold">{countdownElim.minutes}</span>m
+                  </span>
+                </div>
+              ) : (
+                <div className="bg-red-950/40 border border-red-800/40 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+                  <Lock size={12} className="text-red-400" />
+                  <span className="text-xs text-red-300 font-bold">Cerrado</span>
+                </div>
+              )
+            ) : !locked ? (
               <div className="bg-stone-900/60 border border-stone-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
                 <Clock size={12} className="text-amber-400" />
                 <span className="font-mono text-xs text-stone-100">
@@ -145,6 +211,11 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
                 <span className="text-xs text-red-300 font-bold">Cerrado</span>
               </div>
             )}
+            {participante.es_admin && (
+              <a href="/admin" className="px-2 py-1.5 bg-amber-400/20 border border-amber-700/40 rounded-lg text-[10px] font-bold text-amber-300 hover:bg-amber-400/30 transition">
+                ADMIN
+              </a>
+            )}
             <form action="/auth/signout" method="post">
               <button className="p-2 text-stone-500 hover:text-stone-300 transition">
                 <LogOut size={16} />
@@ -152,13 +223,14 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
             </form>
           </div>
         </div>
-        <div className="max-w-5xl mx-auto px-4 flex gap-1 border-t border-stone-900">
+        <div className="max-w-5xl mx-auto px-4 flex gap-1 border-t border-stone-900 overflow-x-auto">
           {[
-            { key: "groups", label: "Mis predicciones", icon: Target },
+            { key: "groups", label: "Fase de grupos", icon: Target },
+            { key: "knockout", label: "Eliminatorias", icon: Trophy },
             { key: "leaderboard", label: "Posiciones", icon: TrendingUp },
           ].map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key as typeof tab)}
-              className={`relative px-4 py-2.5 font-bold text-xs tracking-wide flex items-center gap-1.5 transition-colors ${tab === key ? "text-stone-100" : "text-stone-500 hover:text-stone-300"}`}>
+              className={`relative px-4 py-2.5 font-bold text-xs tracking-wide flex items-center gap-1.5 transition-colors flex-shrink-0 ${tab === key ? "text-stone-100" : "text-stone-500 hover:text-stone-300"}`}>
               <Icon size={13} />{label}
               {tab === key && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-600" />}
             </button>
@@ -167,10 +239,10 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        {/* HERO STRIP */}
+        {/* HERO */}
         <div className="bg-stone-900/40 border border-stone-800 rounded-2xl p-4 mb-5 flex items-center gap-4">
           <div className="flex-1">
-            <div className="text-[10px] font-bold tracking-widest text-amber-400 uppercase mb-1">Tu progreso</div>
+            <div className="text-[10px] font-bold tracking-widest text-amber-400 uppercase mb-1">Tu progreso · grupos</div>
             <div className="text-xl font-black text-stone-100">
               {totalPreds} <span className="text-stone-600 font-normal text-sm">de {partidos.length} predicciones</span>
             </div>
@@ -185,13 +257,14 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
           </div>
         </div>
 
+        {/* TAB: GRUPOS */}
         {tab === "groups" && (
           <div>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <div>
                 <h2 className="text-lg font-black text-stone-100">Fase de grupos</h2>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  {locked ? "Las predicciones están cerradas." : <><span className="text-amber-400 font-bold">1 punto</span> por acierto · Guarda automáticamente</>}
+                  {locked ? "Predicciones cerradas." : <><span className="text-amber-400 font-bold">1 punto</span> por acierto · Guarda automáticamente</>}
                 </p>
               </div>
               <button onClick={() => setShowOthers(!showOthers)}
@@ -208,8 +281,7 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
               </div>
             )}
 
-            {/* Filtro por grupo */}
-            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-4">
               {grupos.map(g => (
                 <button key={g} onClick={() => setFilterGrupo(g)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0 border transition-all ${
@@ -226,7 +298,10 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
                 const away = TEAMS[partido.equipo_visitante];
                 const pred = preds[partido.id];
                 const isInaugural = partido.id === "A1";
-                const fecha = new Date(partido.fecha).toLocaleDateString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Mexico_City" });
+                const fecha = new Date(partido.fecha).toLocaleDateString("es-MX", {
+                  day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                  timeZone: "America/Mexico_City"
+                });
 
                 return (
                   <div key={partido.id} className={`bg-stone-900/40 border rounded-2xl overflow-hidden ${isInaugural ? "border-amber-500/40 shadow-lg shadow-amber-950/20" : "border-stone-800/60"}`}>
@@ -256,20 +331,20 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
                       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 mb-3">
                         <div className="text-right">
                           <div className="text-2xl mb-0.5">{home?.flag}</div>
-                          <div className="font-bold text-xs text-stone-100 leading-tight">{home?.name}</div>
+                          <div className="font-bold text-xs text-stone-100">{home?.name}</div>
                         </div>
                         <div className="text-stone-700 font-mono text-xs">vs</div>
                         <div className="text-left">
                           <div className="text-2xl mb-0.5">{away?.flag}</div>
-                          <div className="font-bold text-xs text-stone-100 leading-tight">{away?.name}</div>
+                          <div className="font-bold text-xs text-stone-100">{away?.name}</div>
                         </div>
                       </div>
 
                       <div className="flex gap-1.5">
                         {[
-                          { val: "1", label: `${partido.equipo_local}` },
+                          { val: "1", label: partido.equipo_local },
                           { val: "X", label: "Empate" },
-                          { val: "2", label: `${partido.equipo_visitante}` },
+                          { val: "2", label: partido.equipo_visitante },
                         ].map(({ val, label }) => (
                           <button key={val} onClick={() => handlePredict(partido.id, val)} disabled={locked}
                             className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all border ${
@@ -281,10 +356,7 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
                           </button>
                         ))}
                       </div>
-
-                      {partido.estadio && (
-                        <div className="text-[10px] text-stone-600 mt-2 text-center truncate">{partido.estadio}</div>
-                      )}
+                      {partido.estadio && <div className="text-[10px] text-stone-600 mt-2 text-center truncate">{partido.estadio}</div>}
                     </div>
                   </div>
                 );
@@ -331,6 +403,109 @@ export default function QuinielaApp({ participante, partidos, prediccionesInicia
           </div>
         )}
 
+        {/* TAB: ELIMINATORIAS */}
+        {tab === "knockout" && (
+          <div>
+            <div className="mb-5">
+              <h2 className="text-lg font-black text-stone-100">Fase eliminatoria</h2>
+              <p className="text-xs text-stone-500 mt-0.5">
+                {lockedElim ? "Predicciones cerradas." : <><span className="text-amber-400 font-bold">1 punto</span> por acierto · Predice quién pasa de cada llave</>}
+              </p>
+            </div>
+
+            {/* Filtro de ronda */}
+            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-5">
+              {RONDAS.map(r => (
+                <button key={r.key} onClick={() => setActiveRonda(r.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0 border transition-all ${
+                    activeRonda === r.key ? "bg-amber-400 text-stone-900 border-transparent" : "bg-stone-900/60 text-stone-400 border-stone-800 hover:border-stone-700"
+                  }`}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-3">
+              {llavesRonda.map(llave => {
+                const localCode = llave.equipo_local;
+                const visitanteCode = llave.equipo_visitante;
+                const localTeam = localCode ? TEAMS[localCode] : null;
+                const visitanteTeam = visitanteCode ? TEAMS[visitanteCode] : null;
+                const definida = !!(localCode && visitanteCode);
+                const pred = predsElim[llave.id];
+                const fecha = new Date(llave.fecha).toLocaleDateString("es-MX", {
+                  day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                  timeZone: "America/Mexico_City"
+                });
+
+                return (
+                  <div key={llave.id} className={`bg-stone-900/40 border rounded-2xl p-4 ${!definida ? "opacity-60" : "border-stone-800/60"} ${llave.ganador ? "border-emerald-800/30" : "border-stone-800/60"}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-[10px] text-stone-500 flex items-center gap-2">
+                        <span className="font-bold text-purple-400">{llave.id}</span>
+                        <span>·</span><span>{fecha}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {saving === llave.id && <div className="w-3 h-3 border border-amber-400 border-t-transparent rounded-full animate-spin" />}
+                        {llave.ganador && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${pred === llave.ganador ? "bg-emerald-400/20 text-emerald-400" : pred ? "bg-red-950/40 text-red-400" : "bg-stone-800 text-stone-500"}`}>
+                            {pred === llave.ganador ? "✓ Acierto" : pred ? "✗ Fallo" : "Sin pred."}
+                          </span>
+                        )}
+                        {!definida && <span className="text-[10px] text-stone-600 font-bold">Por definir</span>}
+                      </div>
+                    </div>
+
+                    {definida ? (
+                      <>
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 mb-3">
+                          <div className="text-right">
+                            <div className="text-2xl mb-0.5">{localTeam?.flag || "🏳️"}</div>
+                            <div className="font-bold text-xs text-stone-100">{localTeam?.name || localCode}</div>
+                          </div>
+                          <div className="text-stone-700 font-mono text-xs">vs</div>
+                          <div className="text-left">
+                            <div className="text-2xl mb-0.5">{visitanteTeam?.flag || "🏳️"}</div>
+                            <div className="font-bold text-xs text-stone-100">{visitanteTeam?.name || visitanteCode}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5">
+                          {[
+                            { val: localCode!, label: localTeam?.name || localCode! },
+                            { val: visitanteCode!, label: visitanteTeam?.name || visitanteCode! },
+                          ].map(({ val, label }) => (
+                            <button key={val} onClick={() => handlePredictElim(llave.id, val)} disabled={lockedElim}
+                              className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all border ${
+                                pred === val
+                                  ? "bg-emerald-400 text-stone-900 border-transparent shadow-md"
+                                  : "bg-stone-900/60 text-stone-400 border-stone-800 hover:border-stone-700 hover:text-stone-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                              }`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between py-3">
+                        <div className="text-center flex-1">
+                          <div className="text-stone-600 text-xs font-mono">{llave.placeholder_local}</div>
+                        </div>
+                        <ChevronRight size={14} className="text-stone-700" />
+                        <div className="text-center flex-1">
+                          <div className="text-stone-600 text-xs font-mono">{llave.placeholder_visitante}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {llave.estadio && <div className="text-[10px] text-stone-600 mt-2 text-center truncate">{llave.estadio}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: POSICIONES */}
         {tab === "leaderboard" && (
           <div>
             <div className="flex items-center justify-between mb-5">
