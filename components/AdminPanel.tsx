@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Trophy, ArrowLeft, Check, Clock, Users, Target, Trash2, DollarSign, ChevronUp, Eye } from "lucide-react";
 import Link from "next/link";
+import TablaPredicciones from "@/components/components/TablaPrediciones";
 
 type Partido = {
   id: string; grupo: string; jornada: number; fecha: string;
@@ -60,8 +61,8 @@ const TEAM_OPTIONS = Object.entries(TEAMS).map(([code, t]) => ({ code, ...t }));
 const RONDAS = ["16vos", "8vos", "4tos", "semi", "final"];
 
 export default function AdminPanel({ partidos: partidosIniciales, participantes: participantesIniciales, llaves: llavesIniciales }: Props) {
-  const [tab, setTab] = useState<"resultados" | "participantes" | "eliminatorias">("resultados");
-  const [partidos, setPartidos] = useState(partidosIniciales);
+const [tab, setTab] = useState<"resultados" | "participantes" | "eliminatorias" | "predicciones">("resultados");
+const [partidos, setPartidos] = useState(partidosIniciales);
   const [participantes, setParticipantes] = useState(participantesIniciales.map(p => ({ ...p, pagado: false })));
   const [llaves, setLlaves] = useState(llavesIniciales);
   const [saving, setSaving] = useState<string | null>(null);
@@ -144,10 +145,11 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
   };
 
   const tabs = [
-    { key: "resultados", label: "Resultados", icon: Check },
-    { key: "participantes", label: "Participantes", icon: Users },
-    { key: "eliminatorias", label: "Eliminatorias", icon: Target },
-  ];
+  { key: "resultados", label: "Resultados", icon: Check },
+  { key: "participantes", label: "Participantes", icon: Users },
+  { key: "eliminatorias", label: "Eliminatorias", icon: Target },
+  { key: "predicciones", label: "Predicciones", icon: Eye },
+];
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -425,7 +427,16 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
             </div>
           </div>
         )}
-      </main>
+      {tab === "predicciones" && (
+          <TablaPredicciones
+            partidos={partidos}
+            participantes={participantes.map(p => ({ id: p.id, nombre: p.nombre }))}
+            esAdmin={true}
+            deadlineGrupos="2020-01-01"
+            deadlineElim="2020-01-01"
+          />
+        )}
     </div>
   );
+       </main>
 }
