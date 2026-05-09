@@ -26,6 +26,7 @@ interface Props {
   partidos: Partido[];
   participantes: Participante[];
   llaves: Llave[];
+  deadlineGrupos: string;
 }
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
@@ -60,9 +61,9 @@ const TEAMS: Record<string, { name: string; flag: string }> = {
 const TEAM_OPTIONS = Object.entries(TEAMS).map(([code, t]) => ({ code, ...t }));
 const RONDAS = ["16vos", "8vos", "4tos", "semi", "final"];
 
-export default function AdminPanel({ partidos: partidosIniciales, participantes: participantesIniciales, llaves: llavesIniciales }: Props) {
-const [tab, setTab] = useState<"resultados" | "participantes" | "eliminatorias" | "predicciones">("resultados");
-const [partidos, setPartidos] = useState(partidosIniciales);
+export default function AdminPanel({ partidos: partidosIniciales, participantes: participantesIniciales, llaves: llavesIniciales, deadlineGrupos }: Props) {
+  const [tab, setTab] = useState<"resultados" | "participantes" | "eliminatorias" | "predicciones">("resultados");
+  const [partidos, setPartidos] = useState(partidosIniciales);
   const [participantes, setParticipantes] = useState(participantesIniciales.map(p => ({ ...p, pagado: false })));
   const [llaves, setLlaves] = useState(llavesIniciales);
   const [saving, setSaving] = useState<string | null>(null);
@@ -78,6 +79,7 @@ const [partidos, setPartidos] = useState(partidosIniciales);
   const [llaveVisitante, setLlaveVisitante] = useState("");
   const supabase = createClient();
 
+  const deadlinePasado = new Date() >= new Date(deadlineGrupos);
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = partidos
     .filter(p => filterGrupo === "ALL" || p.grupo === filterGrupo)
@@ -145,11 +147,11 @@ const [partidos, setPartidos] = useState(partidosIniciales);
   };
 
   const tabs = [
-  { key: "resultados", label: "Resultados", icon: Check },
-  { key: "participantes", label: "Participantes", icon: Users },
-  { key: "eliminatorias", label: "Eliminatorias", icon: Target },
-  { key: "predicciones", label: "Predicciones", icon: Eye },
-];
+    { key: "resultados", label: "Resultados", icon: Check },
+    { key: "participantes", label: "Participantes", icon: Users },
+    { key: "eliminatorias", label: "Eliminatorias", icon: Target },
+    { key: "predicciones", label: "Predicciones", icon: Eye },
+  ];
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -292,9 +294,11 @@ const [partidos, setPartidos] = useState(partidosIniciales);
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-bold text-xs transition-all flex-shrink-0 ${p.pagado ? "bg-emerald-400/20 border-emerald-700/40 text-emerald-300" : "bg-stone-950/60 border-stone-800 text-stone-500 hover:border-stone-700"}`}>
                       <DollarSign size={12} />{p.pagado ? "Pagó" : "Pendiente"}
                     </button>
-                    <button onClick={() => loadPredicciones(p.id)} className="p-2 text-stone-500 hover:text-amber-400 transition flex-shrink-0">
-                      {loadingPreds === p.id ? <div className="w-4 h-4 border border-amber-400 border-t-transparent rounded-full animate-spin" /> : isExpanded ? <ChevronUp size={16} /> : <Eye size={16} />}
-                    </button>
+                    {deadlinePasado && (
+                      <button onClick={() => loadPredicciones(p.id)} className="p-2 text-stone-500 hover:text-amber-400 transition flex-shrink-0">
+                        {loadingPreds === p.id ? <div className="w-4 h-4 border border-amber-400 border-t-transparent rounded-full animate-spin" /> : isExpanded ? <ChevronUp size={16} /> : <Eye size={16} />}
+                      </button>
+                    )}
                     {confirmDelete === p.id ? (
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button onClick={() => handleEliminar(p.id)} className="px-2 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-500 transition">Confirmar</button>
@@ -304,7 +308,7 @@ const [partidos, setPartidos] = useState(partidosIniciales);
                       <button onClick={() => setConfirmDelete(p.id)} className="p-2 text-stone-600 hover:text-red-400 transition flex-shrink-0"><Trash2 size={15} /></button>
                     )}
                   </div>
-                  {isExpanded && (
+                  {isExpanded && deadlinePasado && (
                     <div className="border-t border-stone-800/60 px-4 py-3 bg-stone-950/40">
                       <div className="text-[10px] font-bold tracking-widest text-stone-500 uppercase mb-2">Predicciones de fase de grupos</div>
                       {prediccionesDetalle[p.id]?.length === 0 ? (
@@ -427,7 +431,8 @@ const [partidos, setPartidos] = useState(partidosIniciales);
             </div>
           </div>
         )}
-      {tab === "predicciones" && (
+
+        {tab === "predicciones" && (
           <TablaPredicciones
             partidos={partidos}
             participantes={participantes.map(p => ({ id: p.id, nombre: p.nombre }))}
@@ -436,7 +441,7 @@ const [partidos, setPartidos] = useState(partidosIniciales);
             deadlineElim="2020-01-01"
           />
         )}
-       </main>
+      </main>
     </div>
   );
 }
