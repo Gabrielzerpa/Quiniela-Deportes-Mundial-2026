@@ -43,15 +43,23 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
   const [predicciones, setPredicciones] = useState<Prediccion[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterGrupo, setFilterGrupo] = useState("ALL");
+  const [prediccionesVisibles, setPrediccionesVisibles] = useState(false);
   const supabase = createClient();
 
   const ahora = new Date();
   const deadlineGruposPasado = ahora >= new Date(deadlineGrupos);
-  const deadlineElimPasado = ahora >= new Date(deadlineElim);
-  const puedeVerTabla = esAdmin || deadlineGruposPasado;
+  const puedeVerTabla = esAdmin || deadlineGruposPasado || prediccionesVisibles;
 
   useEffect(() => {
-    if (!puedeVerTabla) return;
+    const fetchVisibilidad = async () => {
+      const { data } = await supabase.from("deadlines").select("predicciones_visibles").single();
+      if (data) setPrediccionesVisibles(data.predicciones_visibles || false);
+    };
+    fetchVisibilidad();
+  }, []);
+
+  useEffect(() => {
+    if (!puedeVerTabla) { setLoading(false); return; }
     const fetchPredicciones = async () => {
       setLoading(true);
       const { data } = await supabase
@@ -86,7 +94,6 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
   };
 
   const downloadExcel = () => {
-    // Construir CSV
     const headers = ["Participante", ...partidosFiltrados.map(p => `${p.equipo_local}vs${p.equipo_visitante}`)];
     const rows = participantes.map(part => {
       const preds = partidosFiltrados.map(partido => {
@@ -95,11 +102,9 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
       });
       return [part.nombre, ...preds];
     });
-
     const csvContent = [headers, ...rows]
       .map(row => row.map(cell => `"${cell}"`).join(","))
       .join("\n");
-
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -108,6 +113,15 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (loading) {
+    return (
+      <div className="text-center py-16 text-stone-500">
+        <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-xs">Cargando...</p>
+      </div>
+    );
+  }
 
   if (!puedeVerTabla) {
     return (
@@ -119,22 +133,18 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
     );
   }
 
-  if (loading) {
-    return (
-      <div className="text-center py-16 text-stone-500">
-        <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-xs">Cargando predicciones...</p>
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-black text-stone-100">Tabla de predicciones</h2>
           <p className="text-xs text-stone-500 mt-0.5">
-            {esAdmin && !deadlineGruposPasado && <span className="text-amber-400">Solo visible para admins hasta el deadline · </span>}
+            {esAdmin && !deadlineGruposPasado && !prediccionesVisibles && (
+              <span className="text-amber-400">Solo visible para admins hasta el deadline · </span>
+            )}
+            {prediccionesVisibles && !deadlineGruposPasado && (
+              <span className="text-emerald-400">Visible manualmente activado por admin · </span>
+            )}
             Fase de grupos
           </p>
         </div>
@@ -145,7 +155,6 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
         </button>
       </div>
 
-      {/* Filtro por grupo */}
       <div className="flex gap-1.5 overflow-x-auto pb-2 mb-4">
         {grupos.map(g => (
           <button key={g} onClick={() => setFilterGrupo(g)}
@@ -157,7 +166,6 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
         ))}
       </div>
 
-      {/* Tabla */}
       <div className="overflow-x-auto rounded-xl border border-stone-800">
         <table className="w-full text-xs">
           <thead>
