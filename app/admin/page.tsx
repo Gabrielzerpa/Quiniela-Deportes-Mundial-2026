@@ -34,7 +34,6 @@ export default async function AdminPage() {
     .select("*")
     .order("fecha", { ascending: true });
 
-  // Combinar posiciones con info de participantes
   const participantes = (posiciones || []).map(p => {
     const info = (participantesInfo || []).find(i => i.id === p.id);
     return {
@@ -46,11 +45,14 @@ export default async function AdminPage() {
     };
   });
 
+  const deadlineGrupos = "2026-06-11T16:00:00-06:00";
+
   return (
     <AdminPanel
       partidos={partidos || []}
       participantes={participantes}
       llaves={llaves || []}
+      deadlineGrupos={deadlineGrupos}
     />
   );
 }
