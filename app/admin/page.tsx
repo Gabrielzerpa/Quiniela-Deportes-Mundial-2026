@@ -34,6 +34,11 @@ export default async function AdminPage() {
     .select("*")
     .order("fecha", { ascending: true });
 
+  const { data: deadlines } = await supabase
+    .from("deadlines")
+    .select("*")
+    .single();
+
   const participantes = (posiciones || []).map(p => {
     const info = (participantesInfo || []).find(i => i.id === p.id);
     return {
@@ -53,6 +58,7 @@ export default async function AdminPage() {
       participantes={participantes}
       llaves={llaves || []}
       deadlineGrupos={deadlineGrupos}
+      prediccionesVisibles={deadlines?.predicciones_visibles || false}
     />
   );
 }
