@@ -436,7 +436,7 @@ const [partidos, setPartidos] = useState(partidosIniciales);
             deadlineElim="2020-01-01"
           />
         )}
+       </main>
     </div>
   );
-       </main>
 }
