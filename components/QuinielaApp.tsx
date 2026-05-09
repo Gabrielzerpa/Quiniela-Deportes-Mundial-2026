@@ -50,6 +50,7 @@ type Llave = {
   equipo_local: string | null; equipo_visitante: string | null;
   placeholder_local: string; placeholder_visitante: string;
   ganador: string | null; estadio: string;
+  llave_siguiente_id: string | null;
 };
 
 interface Props {
@@ -116,7 +117,25 @@ export default function QuinielaApp({
 
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = filterGrupo === "ALL" ? partidos : partidos.filter(p => p.grupo === filterGrupo);
-  const llavesRonda = llaves.filter(l => l.ronda === activeRonda);
+
+  // Función clave: obtiene los equipos a mostrar en una llave basándose en picks previos
+  const getEquiposParaLlave = useCallback((llave: Llave): { local: string | null; visitante: string | null; esProjection: boolean } => {
+    // Si ya tiene equipos reales definidos por el admin, usarlos
+    if (llave.equipo_local && llave.equipo_visitante) {
+      return { local: llave.equipo_local, visitante: llave.equipo_visitante, esProjection: false };
+    }
+
+    // Buscar las llaves anteriores que alimentan a esta
+    const llavesAnteriores = llaves.filter(l => l.llave_siguiente_id === llave.id);
+    if (llavesAnteriores.length !== 2) return { local: null, visitante: null, esProjection: false };
+
+    const pickLocal = predsElim[llavesAnteriores[0].id] || null;
+    const pickVisitante = predsElim[llavesAnteriores[1].id] || null;
+
+    if (!pickLocal && !pickVisitante) return { local: null, visitante: null, esProjection: false };
+
+    return { local: pickLocal, visitante: pickVisitante, esProjection: true };
+  }, [llaves, predsElim]);
 
   const handlePredict = useCallback(async (partidoId: string, value: string) => {
     if (locked) return;
@@ -161,6 +180,9 @@ export default function QuinielaApp({
   const totalPreds = Object.keys(preds).length;
   const completion = partidos.length > 0 ? Math.round((totalPreds / partidos.length) * 100) : 0;
   const miPosicion = posiciones.findIndex(p => p.id === participante.id) + 1;
+
+  const llavesRonda = llaves.filter(l => l.ronda === activeRonda);
+
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "system-ui, sans-serif" }}>
       <div className="fixed inset-0 pointer-events-none">
@@ -229,7 +251,8 @@ export default function QuinielaApp({
             { key: "groups", label: "Fase de grupos", icon: Target },
             { key: "knockout", label: "Eliminatorias", icon: Trophy },
             { key: "leaderboard", label: "Posiciones", icon: TrendingUp },
-            { key: "tabla", label: "Predicciones", icon: Eye },          ].map(({ key, label, icon: Icon }) => (
+            { key: "tabla", label: "Predicciones", icon: Eye },
+          ].map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key as typeof tab)}
               className={`relative px-4 py-2.5 font-bold text-xs tracking-wide flex items-center gap-1.5 transition-colors flex-shrink-0 ${tab === key ? "text-stone-100" : "text-stone-500 hover:text-stone-300"}`}>
               <Icon size={13} />{label}
@@ -382,17 +405,17 @@ export default function QuinielaApp({
                   </button>
                 ))}
                 <button onClick={() => !locked && handleGoleador("otro")} disabled={locked}
-                className={`flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all ${
-                  goleadorPick && !goleadores.find(g => g.nombre === goleadorPick)
-                    ? "bg-amber-400/15 border-amber-500/60"
-                    : "bg-stone-950/40 border-stone-900 hover:border-stone-800 disabled:opacity-40"
-                }`}>
-                <span className="text-lg">⚽</span>
-                <div>
-                  <div className="text-xs font-bold text-stone-200">Otro jugador</div>
-                  <div className="text-[10px] text-stone-500">Escribe el nombre</div>
-                </div>
-              </button>
+                  className={`flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all ${
+                    goleadorPick && !goleadores.find(g => g.nombre === goleadorPick)
+                      ? "bg-amber-400/15 border-amber-500/60"
+                      : "bg-stone-950/40 border-stone-900 hover:border-stone-800 disabled:opacity-40"
+                  }`}>
+                  <span className="text-lg">⚽</span>
+                  <div>
+                    <div className="text-xs font-bold text-stone-200">Otro jugador</div>
+                    <div className="text-[10px] text-stone-500">Escribe el nombre</div>
+                  </div>
+                </button>
               </div>
               {goleadorPick && goleadores.find(g => g.nombre === goleadorPick) && (
                 <div className="mt-3 text-xs text-emerald-400 flex items-center gap-1.5">
@@ -449,8 +472,7 @@ export default function QuinielaApp({
             </div>
             <div className="grid md:grid-cols-2 gap-3">
               {llavesRonda.map(llave => {
-                const localCode = llave.equipo_local;
-                const visitanteCode = llave.equipo_visitante;
+                const { local: localCode, visitante: visitanteCode, esProjection } = getEquiposParaLlave(llave);
                 const localTeam = localCode ? TEAMS[localCode] : null;
                 const visitanteTeam = visitanteCode ? TEAMS[visitanteCode] : null;
                 const definida = !!(localCode && visitanteCode);
@@ -460,11 +482,16 @@ export default function QuinielaApp({
                   timeZone: "America/Mexico_City"
                 });
                 return (
-                  <div key={llave.id} className={`bg-stone-900/40 border rounded-2xl p-4 ${!definida ? "opacity-60" : ""} ${llave.ganador ? "border-emerald-800/30" : "border-stone-800/60"}`}>
+                  <div key={llave.id} className={`bg-stone-900/40 border rounded-2xl p-4 ${!definida && !esProjection ? "opacity-60" : ""} ${llave.ganador ? "border-emerald-800/30" : esProjection ? "border-purple-800/40" : "border-stone-800/60"}`}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-[10px] text-stone-500 flex items-center gap-2">
                         <span className="font-bold text-purple-400">{llave.id}</span>
                         <span>·</span><span>{fecha}</span>
+                        {esProjection && (
+                          <span className="text-[9px] bg-purple-900/40 text-purple-400 border border-purple-800/40 px-1.5 py-0.5 rounded font-bold">
+                            TU PROYECCIÓN
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         {saving === llave.id && <div className="w-3 h-3 border border-amber-400 border-t-transparent rounded-full animate-spin" />}
@@ -473,37 +500,44 @@ export default function QuinielaApp({
                             {pred === llave.ganador ? "✓ Acierto" : pred ? "✗ Fallo" : "Sin pred."}
                           </span>
                         )}
-                        {!definida && <span className="text-[10px] text-stone-600 font-bold">Por definir</span>}
+                        {!definida && !esProjection && <span className="text-[10px] text-stone-600 font-bold">Por definir</span>}
                       </div>
                     </div>
-                    {definida ? (
+                    {definida || esProjection ? (
                       <>
                         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 mb-3">
                           <div className="text-right">
                             <div className="text-2xl mb-0.5">{localTeam?.flag || "🏳️"}</div>
-                            <div className="font-bold text-xs text-stone-100">{localTeam?.name || localCode}</div>
+                            <div className="font-bold text-xs text-stone-100">{localTeam?.name || localCode || "?"}</div>
                           </div>
                           <div className="text-stone-700 font-mono text-xs">vs</div>
                           <div className="text-left">
                             <div className="text-2xl mb-0.5">{visitanteTeam?.flag || "🏳️"}</div>
-                            <div className="font-bold text-xs text-stone-100">{visitanteTeam?.name || visitanteCode}</div>
+                            <div className="font-bold text-xs text-stone-100">{visitanteTeam?.name || visitanteCode || "?"}</div>
                           </div>
                         </div>
-                        <div className="flex gap-1.5">
-                          {[
-                            { val: localCode!, label: localTeam?.name || localCode! },
-                            { val: visitanteCode!, label: visitanteTeam?.name || visitanteCode! },
-                          ].map(({ val, label }) => (
-                            <button key={val} onClick={() => handlePredictElim(llave.id, val)} disabled={lockedElim}
-                              className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all border ${
-                                pred === val
-                                  ? "bg-emerald-400 text-stone-900 border-transparent shadow-md"
-                                  : "bg-stone-900/60 text-stone-400 border-stone-800 hover:border-stone-700 hover:text-stone-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                              }`}>
-                              {label}
-                            </button>
-                          ))}
-                        </div>
+                        {localCode && visitanteCode && (
+                          <div className="flex gap-1.5">
+                            {[
+                              { val: localCode, label: localTeam?.name || localCode },
+                              { val: visitanteCode, label: visitanteTeam?.name || visitanteCode },
+                            ].map(({ val, label }) => (
+                              <button key={val} onClick={() => handlePredictElim(llave.id, val)} disabled={lockedElim}
+                                className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all border ${
+                                  pred === val
+                                    ? "bg-emerald-400 text-stone-900 border-transparent shadow-md"
+                                    : "bg-stone-900/60 text-stone-400 border-stone-800 hover:border-stone-700 hover:text-stone-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                                }`}>
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {esProjection && (!localCode || !visitanteCode) && (
+                          <div className="text-center py-2 text-xs text-stone-500">
+                            Completa tus picks en 16vos para ver la proyección completa
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="flex items-center justify-between py-3">
@@ -595,6 +629,7 @@ export default function QuinielaApp({
             </div>
           </div>
         )}
+
         {tab === "tabla" && (
           <TablaPredicciones
             partidos={partidos}
