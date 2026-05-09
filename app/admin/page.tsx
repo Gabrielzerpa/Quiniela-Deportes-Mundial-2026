@@ -21,19 +21,35 @@ export default async function AdminPage() {
     .select("*")
     .order("fecha", { ascending: true });
 
-  const { data: participantes } = await supabase
+  const { data: posiciones } = await supabase
     .from("tabla_posiciones")
     .select("*");
+
+  const { data: participantesInfo } = await supabase
+    .from("participantes")
+    .select("id, nombre, email, goleador_pick, pagado, es_admin");
 
   const { data: llaves } = await supabase
     .from("llaves_eliminatorias")
     .select("*")
     .order("fecha", { ascending: true });
 
+  // Combinar posiciones con info de participantes
+  const participantes = (posiciones || []).map(p => {
+    const info = (participantesInfo || []).find(i => i.id === p.id);
+    return {
+      ...p,
+      email: info?.email || "",
+      goleador_pick: info?.goleador_pick || null,
+      pagado: info?.pagado || false,
+      es_admin: info?.es_admin || false,
+    };
+  });
+
   return (
     <AdminPanel
       partidos={partidos || []}
-      participantes={participantes || []}
+      participantes={participantes}
       llaves={llaves || []}
     />
   );
