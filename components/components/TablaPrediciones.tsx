@@ -69,8 +69,8 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
       setLoading(false);
     };
     fetchPredicciones();
-  }, [puedeVerTabla]);
-
+}, [puedeVerTabla, prediccionesVisibles]);
+  
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = filterGrupo === "ALL"
     ? partidos
