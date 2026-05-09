@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Trophy, ArrowLeft, Check, Clock, Users, Target, Trash2, DollarSign, ChevronUp, Eye } from "lucide-react";
+import { Trophy, ArrowLeft, Check, Clock, Users, Target, Trash2, DollarSign, ChevronUp, Eye, RotateCcw, EyeOff } from "lucide-react";
 import Link from "next/link";
 import TablaPredicciones from "@/components/components/TablaPrediciones";
 
@@ -27,6 +27,7 @@ interface Props {
   participantes: Participante[];
   llaves: Llave[];
   deadlineGrupos: string;
+  prediccionesVisibles: boolean;
 }
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
@@ -61,7 +62,7 @@ const TEAMS: Record<string, { name: string; flag: string }> = {
 const TEAM_OPTIONS = Object.entries(TEAMS).map(([code, t]) => ({ code, ...t }));
 const RONDAS = ["16vos", "8vos", "4tos", "semi", "final"];
 
-export default function AdminPanel({ partidos: partidosIniciales, participantes: participantesIniciales, llaves: llavesIniciales, deadlineGrupos }: Props) {
+export default function AdminPanel({ partidos: partidosIniciales, participantes: participantesIniciales, llaves: llavesIniciales, deadlineGrupos, prediccionesVisibles: prediccionesVisiblesIniciales }: Props) {
   const [tab, setTab] = useState<"resultados" | "participantes" | "eliminatorias" | "predicciones">("resultados");
   const [partidos, setPartidos] = useState(partidosIniciales);
   const [participantes, setParticipantes] = useState(participantesIniciales.map(p => ({ ...p, pagado: false })));
@@ -77,6 +78,10 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
   const [editingLlave, setEditingLlave] = useState<string | null>(null);
   const [llaveLocal, setLlaveLocal] = useState("");
   const [llaveVisitante, setLlaveVisitante] = useState("");
+  const [prediccionesVisibles, setPrediccionesVisibles] = useState(prediccionesVisiblesIniciales);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [togglingVisibilidad, setTogglingVisibilidad] = useState(false);
   const supabase = createClient();
 
   const deadlinePasado = new Date() >= new Date(deadlineGrupos);
@@ -88,6 +93,28 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
   const totalPendientes = partidos.filter(p => p.resultado === null).length;
   const totalPagados = participantes.filter(p => p.pagado).length;
   const llavesRonda = llaves.filter(l => l.ronda === activeRonda);
+
+  const handleResetResultados = async () => {
+    setResetting(true);
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from("partidos").update({ resultado: null, updated_at: new Date().toISOString() }).neq("id", ""),
+      supabase.from("llaves_eliminatorias").update({ ganador: null, updated_at: new Date().toISOString() }).neq("id", ""),
+    ]);
+    if (!e1 && !e2) {
+      setPartidos(prev => prev.map(p => ({ ...p, resultado: null })));
+      setLlaves(prev => prev.map(l => ({ ...l, ganador: null })));
+    }
+    setConfirmReset(false);
+    setResetting(false);
+  };
+
+  const handleToggleVisibilidad = async () => {
+    setTogglingVisibilidad(true);
+    const nuevo = !prediccionesVisibles;
+    const { error } = await supabase.from("deadlines").update({ predicciones_visibles: nuevo }).eq("id", 1);
+    if (!error) setPrediccionesVisibles(nuevo);
+    setTogglingVisibilidad(false);
+  };
 
   const handleResultado = async (partidoId: string, resultado: string) => {
     setSaving(partidoId);
@@ -201,6 +228,47 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
+
+        {/* Herramientas de admin */}
+        <div className="bg-stone-900/40 border border-stone-800 rounded-2xl p-4 mb-6 flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-bold tracking-widest text-stone-500 uppercase mb-0.5">Herramientas</div>
+            <div className="text-xs text-stone-400">Acciones globales del torneo</div>
+          </div>
+
+          {/* Toggle predicciones visibles */}
+          <button onClick={handleToggleVisibilidad} disabled={togglingVisibilidad}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs border transition-all ${
+              prediccionesVisibles
+                ? "bg-emerald-400/20 border-emerald-700/40 text-emerald-300 hover:bg-emerald-400/30"
+                : "bg-stone-900/60 border-stone-700 text-stone-400 hover:border-stone-600"
+            } disabled:opacity-50`}>
+            {prediccionesVisibles ? <Eye size={13} /> : <EyeOff size={13} />}
+            {togglingVisibilidad ? "Guardando..." : prediccionesVisibles ? "Predicciones visibles" : "Predicciones ocultas"}
+          </button>
+
+          {/* Reset resultados */}
+          {confirmReset ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-red-400 font-bold">¿Resetear todos los resultados?</span>
+              <button onClick={handleResetResultados} disabled={resetting}
+                className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-500 transition disabled:opacity-50">
+                {resetting ? "Reseteando..." : "Confirmar"}
+              </button>
+              <button onClick={() => setConfirmReset(false)}
+                className="px-3 py-1.5 bg-stone-800 text-stone-300 rounded-lg text-xs font-bold hover:bg-stone-700 transition">
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmReset(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs border border-red-900/40 bg-red-950/20 text-red-400 hover:bg-red-950/40 transition">
+              <RotateCcw size={13} />
+              Resetear resultados
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
             { val: participantes.length, label: "Participantes", icon: Users, color: "text-amber-400" },
