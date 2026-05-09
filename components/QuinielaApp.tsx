@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Trophy, Lock, Clock, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut, ChevronRight } from "lucide-react";
+import TablaPredicciones from "@/components/TablaPrediciones";
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
   MEX: { name: "México", flag: "🇲🇽" }, RSA: { name: "Sudáfrica", flag: "🇿🇦" },
@@ -95,7 +96,7 @@ export default function QuinielaApp({
   participante, partidos, prediccionesIniciales, posiciones,
   goleadores, deadline, deadlineElim, llaves, prediccionesElimIniciales
 }: Props) {
-  const [tab, setTab] = useState<"groups" | "knockout" | "leaderboard">("groups");
+  const [tab, setTab] = useState<"groups" | "knockout" | "leaderboard" | "tabla">("groups");
   const [preds, setPreds] = useState<Record<string, string>>(
     Object.fromEntries(prediccionesIniciales.map(p => [p.partido_id, p.prediccion]))
   );
@@ -228,7 +229,7 @@ export default function QuinielaApp({
             { key: "groups", label: "Fase de grupos", icon: Target },
             { key: "knockout", label: "Eliminatorias", icon: Trophy },
             { key: "leaderboard", label: "Posiciones", icon: TrendingUp },
-          ].map(({ key, label, icon: Icon }) => (
+            { key: "tabla", label: "Predicciones", icon: Eye },          ].map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key as typeof tab)}
               className={`relative px-4 py-2.5 font-bold text-xs tracking-wide flex items-center gap-1.5 transition-colors flex-shrink-0 ${tab === key ? "text-stone-100" : "text-stone-500 hover:text-stone-300"}`}>
               <Icon size={13} />{label}
@@ -593,6 +594,15 @@ export default function QuinielaApp({
               </div>
             </div>
           </div>
+        )}
+        {tab === "tabla" && (
+          <TablaPredicciones
+            partidos={partidos}
+            participantes={posiciones.map(p => ({ id: p.id, nombre: p.nombre }))}
+            esAdmin={participante.es_admin}
+            deadlineGrupos={deadline}
+            deadlineElim={deadlineElim}
+          />
         )}
       </main>
     </div>
