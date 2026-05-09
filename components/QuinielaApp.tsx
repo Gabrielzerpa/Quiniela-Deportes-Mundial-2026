@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Trophy, Lock, Clock, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut, ChevronRight } from "lucide-react";
-import TablaPredicciones from "@/components/TablaPrediciones";
+import TablaPredicciones from "@/components/components/TablaPrediciones";
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
   MEX: { name: "México", flag: "🇲🇽" }, RSA: { name: "Sudáfrica", flag: "🇿🇦" },
