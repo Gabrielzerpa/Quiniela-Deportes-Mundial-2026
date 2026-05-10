@@ -9,20 +9,32 @@ export async function GET(request: Request) {
 
   if (token_hash && type) {
     const supabase = createClient();
-    const { error } = await supabase.auth.verifyOtp({
+    const { error, data } = await supabase.auth.verifyOtp({
       type: type as "email" | "recovery" | "invite" | "email_change" | "magiclink",
       token_hash,
     });
-    if (!error) {
-      return NextResponse.redirect(`${origin}/onboarding`);
+    if (!error && data.user) {
+      const { data: participante } = await supabase
+        .from("participantes")
+        .select("nombre")
+        .eq("id", data.user.id)
+        .single();
+      const necesitaNombre = !participante?.nombre || participante.nombre.includes("@");
+      return NextResponse.redirect(`${origin}${necesitaNombre ? "/onboarding" : "/"}`);
     }
   }
 
   if (code) {
     const supabase = createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${origin}/onboarding`);
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error && data.user) {
+      const { data: participante } = await supabase
+        .from("participantes")
+        .select("nombre")
+        .eq("id", data.user.id)
+        .single();
+      const necesitaNombre = !participante?.nombre || participante.nombre.includes("@");
+      return NextResponse.redirect(`${origin}${necesitaNombre ? "/onboarding" : "/"}`);
     }
   }
 
