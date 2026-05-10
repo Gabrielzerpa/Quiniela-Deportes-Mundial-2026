@@ -33,7 +33,7 @@ export default function OnboardingForm({ participanteId }: { participanteId: str
 
     const { error: updateError } = await supabase
       .from("participantes")
-      .update({ nombre: nombreLimpio })
+      .update({ nombre: nombreLimpio, nombre_confirmado: true })
       .eq("id", participanteId);
 
     if (!updateError) {
