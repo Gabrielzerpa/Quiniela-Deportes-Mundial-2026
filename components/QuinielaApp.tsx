@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Trophy, Lock, Clock, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut, ChevronRight, BookOpen } from "lucide-react";
+import { Trophy, Lock, Clock, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut, ChevronRight, BookOpen, Pencil } from "lucide-react";
 import TablaPredicciones from "@/components/components/TablaPrediciones";
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
@@ -140,6 +140,11 @@ export default function QuinielaApp({
   const [showOthers, setShowOthers] = useState(false);
   const [filterGrupo, setFilterGrupo] = useState("ALL");
   const [activeRonda, setActiveRonda] = useState("16vos");
+  const [editandoNombre, setEditandoNombre] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState(participante.nombre);
+  const [nombreMostrado, setNombreMostrado] = useState(participante.nombre);
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
+  const [errorNombre, setErrorNombre] = useState("");
   const countdown = useCountdown(deadline);
   const countdownElim = useCountdown(deadlineElim);
   const supabase = createClient();
@@ -160,6 +165,34 @@ export default function QuinielaApp({
     if (!pickLocal && !pickVisitante) return { local: null, visitante: null, esProjection: false };
     return { local: pickLocal, visitante: pickVisitante, esProjection: true };
   }, [llaves, predsElim]);
+
+  const handleGuardarNombre = async () => {
+    const nombre = nuevoNombre.trim();
+    if (!nombre) return;
+    if (nombre === nombreMostrado) { setEditandoNombre(false); return; }
+    setGuardandoNombre(true);
+    setErrorNombre("");
+    const { data: existe } = await supabase
+      .from("participantes")
+      .select("id")
+      .eq("nombre", nombre)
+      .neq("id", participante.id)
+      .single();
+    if (existe) {
+      setErrorNombre("Nombre ya existe");
+      setGuardandoNombre(false);
+      return;
+    }
+    const { error } = await supabase
+      .from("participantes")
+      .update({ nombre })
+      .eq("id", participante.id);
+    if (!error) {
+      setNombreMostrado(nombre);
+      setEditandoNombre(false);
+    }
+    setGuardandoNombre(false);
+  };
 
   const handlePredict = useCallback(async (partidoId: string, value: string) => {
     if (locked) return;
@@ -225,6 +258,37 @@ export default function QuinielaApp({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Nombre editable */}
+            {editandoNombre ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={nuevoNombre}
+                  onChange={e => setNuevoNombre(e.target.value)}
+                  className="bg-stone-900 border border-amber-500/60 rounded-lg px-2 py-1 text-xs text-stone-100 focus:outline-none w-32"
+                  maxLength={30}
+                  autoFocus
+                  onKeyDown={e => e.key === "Enter" && handleGuardarNombre()}
+                />
+                <button onClick={handleGuardarNombre} disabled={guardandoNombre}
+                  className="px-2 py-1 bg-amber-400 text-stone-900 rounded-lg text-xs font-bold hover:bg-amber-300 transition disabled:opacity-50">
+                  {guardandoNombre ? "..." : "✓"}
+                </button>
+                <button onClick={() => { setEditandoNombre(false); setNuevoNombre(nombreMostrado); setErrorNombre(""); }}
+                  className="px-2 py-1 bg-stone-800 text-stone-300 rounded-lg text-xs font-bold hover:bg-stone-700 transition">
+                  ✕
+                </button>
+                {errorNombre && <span className="text-[10px] text-red-400">{errorNombre}</span>}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-stone-300 hidden sm:block">{nombreMostrado}</span>
+                <button onClick={() => setEditandoNombre(true)}
+                  className="p-1.5 text-stone-500 hover:text-amber-400 transition">
+                  <Pencil size={13} />
+                </button>
+              </div>
+            )}
             {tab === "knockout" ? (
               !lockedElim ? (
                 <div className="bg-stone-900/60 border border-stone-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
@@ -306,7 +370,6 @@ export default function QuinielaApp({
 
         {tab === "groups" && (
           <div>
-            {/* Banner de bienvenida */}
             <div className="bg-gradient-to-br from-amber-950/60 to-stone-900/60 border border-amber-700/40 rounded-2xl p-5 mb-5 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 bg-amber-400/[0.03] rounded-full blur-2xl" />
               <div className="relative">
@@ -315,7 +378,7 @@ export default function QuinielaApp({
                   <span className="text-[10px] font-bold tracking-widest text-amber-400 uppercase">Quiniela Mundial 2026</span>
                 </div>
                 <h1 className="text-xl font-black text-stone-100 mb-1">
-                  Bienvenido a la quiniela de <span className="text-amber-400">Grupo Deportes</span>
+                  Bienvenido <span className="text-amber-400">Grupo Deportes</span>
                 </h1>
                 <p className="text-xs text-stone-400 mb-4 italic">"Cero lloradera, cero galleta." 🏆</p>
                 <div className="grid grid-cols-3 gap-3">
