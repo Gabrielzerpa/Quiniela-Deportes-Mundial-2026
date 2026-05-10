@@ -9,11 +9,11 @@ export default async function OnboardingPage() {
 
   const { data: participante } = await supabase
     .from("participantes")
-    .select("id, nombre")
+    .select("id, nombre_confirmado")
     .eq("id", user.id)
     .single();
 
-  if (participante?.nombre && !participante.nombre.includes("@")) {
+  if (participante?.nombre_confirmado) {
     redirect("/");
   }
 
