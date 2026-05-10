@@ -16,11 +16,10 @@ export async function GET(request: Request) {
     if (!error && data.user) {
       const { data: participante } = await supabase
         .from("participantes")
-        .select("nombre")
+        .select("nombre_confirmado")
         .eq("id", data.user.id)
         .single();
-      const necesitaNombre = !participante?.nombre || participante.nombre.includes("@");
-      return NextResponse.redirect(`${origin}${necesitaNombre ? "/onboarding" : "/"}`);
+      return NextResponse.redirect(`${origin}${participante?.nombre_confirmado ? "/" : "/onboarding"}`);
     }
   }
 
@@ -30,11 +29,10 @@ export async function GET(request: Request) {
     if (!error && data.user) {
       const { data: participante } = await supabase
         .from("participantes")
-        .select("nombre")
+        .select("nombre_confirmado")
         .eq("id", data.user.id)
         .single();
-      const necesitaNombre = !participante?.nombre || participante.nombre.includes("@");
-      return NextResponse.redirect(`${origin}${necesitaNombre ? "/onboarding" : "/"}`);
+      return NextResponse.redirect(`${origin}${participante?.nombre_confirmado ? "/" : "/onboarding"}`);
     }
   }
 
