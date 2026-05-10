@@ -315,7 +315,7 @@ export default function QuinielaApp({
                   <span className="text-[10px] font-bold tracking-widest text-amber-400 uppercase">Quiniela Mundial 2026</span>
                 </div>
                 <h1 className="text-xl font-black text-stone-100 mb-1">
-                  Bienvenido al <span className="text-amber-400">Grupo Deportes</span>
+                  Bienvenido a la quiniela de <span className="text-amber-400">Grupo Deportes</span>
                 </h1>
                 <p className="text-xs text-stone-400 mb-4 italic">"Cero lloradera, cero galleta." 🏆</p>
                 <div className="grid grid-cols-3 gap-3">
