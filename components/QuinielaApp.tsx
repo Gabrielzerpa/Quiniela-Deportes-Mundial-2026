@@ -145,6 +145,12 @@ export default function QuinielaApp({
   const [nombreMostrado, setNombreMostrado] = useState(participante.nombre);
   const [guardandoNombre, setGuardandoNombre] = useState(false);
   const [errorNombre, setErrorNombre] = useState("");
+  const [mostrarModalNombre, setMostrarModalNombre] = useState(
+    !participante.nombre || participante.nombre === participante.email || participante.nombre.includes("@")
+  );
+  const [nombreInicial, setNombreInicial] = useState("");
+  const [guardandoNombreInicial, setGuardandoNombreInicial] = useState(false);
+  const [errorNombreInicial, setErrorNombreInicial] = useState("");
   const countdown = useCountdown(deadline);
   const countdownElim = useCountdown(deadlineElim);
   const supabase = createClient();
@@ -194,6 +200,34 @@ export default function QuinielaApp({
     setGuardandoNombre(false);
   };
 
+  const handleGuardarNombreInicial = async () => {
+    const nombre = nombreInicial.trim();
+    if (!nombre) { setErrorNombreInicial("Escribe tu nombre"); return; }
+    setGuardandoNombreInicial(true);
+    setErrorNombreInicial("");
+    const { data: existe } = await supabase
+      .from("participantes")
+      .select("id")
+      .eq("nombre", nombre)
+      .neq("id", participante.id)
+      .single();
+    if (existe) {
+      setErrorNombreInicial("Ese nombre ya está en uso, elige otro");
+      setGuardandoNombreInicial(false);
+      return;
+    }
+    const { error } = await supabase
+      .from("participantes")
+      .update({ nombre })
+      .eq("id", participante.id);
+    if (!error) {
+      setNombreMostrado(nombre);
+      setNuevoNombre(nombre);
+      setMostrarModalNombre(false);
+    }
+    setGuardandoNombreInicial(false);
+  };
+
   const handlePredict = useCallback(async (partidoId: string, value: string) => {
     if (locked) return;
     setPreds(prev => ({ ...prev, [partidoId]: value }));
@@ -241,6 +275,45 @@ export default function QuinielaApp({
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "system-ui, sans-serif" }}>
+
+      {/* Modal de nombre inicial */}
+      {mostrarModalNombre && (
+        <div className="fixed inset-0 bg-stone-950/90 backdrop-blur z-50 flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-700 rounded-2xl p-6 w-full max-w-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-300 to-amber-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Trophy size={18} className="text-stone-900" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h2 className="font-black text-stone-100 text-base">¡Bienvenido!</h2>
+                <p className="text-[10px] text-stone-500">Quiniela Mundial 2026 · Grupo Deportes</p>
+              </div>
+            </div>
+            <p className="text-xs text-stone-400 mb-4 leading-relaxed">
+              Elige el nombre con el que aparecerás en la quiniela. Este será visible para todos los participantes.
+            </p>
+            <input
+              type="text"
+              placeholder="Tu nombre..."
+              value={nombreInicial}
+              onChange={e => setNombreInicial(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleGuardarNombreInicial()}
+              maxLength={30}
+              autoFocus
+              className="w-full bg-stone-950/60 border border-stone-700 rounded-lg px-4 py-2.5 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500/60 mb-3"
+            />
+            {errorNombreInicial && (
+              <p className="text-xs text-red-400 mb-3">{errorNombreInicial}</p>
+            )}
+            <button onClick={handleGuardarNombreInicial} disabled={guardandoNombreInicial}
+              className="w-full py-2.5 bg-amber-400 text-stone-900 rounded-lg font-black text-sm hover:bg-amber-300 transition disabled:opacity-50">
+              {guardandoNombreInicial ? "Guardando..." : "Entrar a la quiniela 🏆"}
+            </button>
+            <p className="text-[10px] text-stone-600 text-center mt-3">Cero lloradera, cero galleta.</p>
+          </div>
+        </div>
+      )}
+
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/[0.04] rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-500/[0.02] rounded-full blur-3xl" />
@@ -258,7 +331,6 @@ export default function QuinielaApp({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Nombre editable */}
             {editandoNombre ? (
               <div className="flex items-center gap-1.5">
                 <input
