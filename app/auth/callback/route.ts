@@ -6,7 +6,6 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type");
-  const next = searchParams.get("next") ?? "/";
 
   if (token_hash && type) {
     const supabase = createClient();
@@ -15,7 +14,7 @@ export async function GET(request: Request) {
       token_hash,
     });
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${origin}/onboarding`);
     }
   }
 
@@ -23,7 +22,7 @@ export async function GET(request: Request) {
     const supabase = createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${origin}/onboarding`);
     }
   }
 
