@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Trophy, Lock, Clock, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut, ChevronRight } from "lucide-react";
+import { Trophy, Lock, Clock, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut, ChevronRight, BookOpen } from "lucide-react";
 import TablaPredicciones from "@/components/components/TablaPrediciones";
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
@@ -93,11 +93,42 @@ const RONDAS = [
   { key: "final", label: "Final" },
 ];
 
+const REGLAMENTO = [
+  {
+    titulo: "💰 Inscripción y pago",
+    contenido: "La inscripción tiene un costo de $20 USD. Todo participante que no realice el pago será eliminado de la lista y sus predicciones no serán tomadas en cuenta. No hay excepciones."
+  },
+  {
+    titulo: "⚽ Predicciones fase de grupos",
+    contenido: "Cada participante deberá completar sus predicciones de los 72 partidos de la fase de grupos y elegir su goleador del torneo antes del pitazo inicial del partido inaugural (11 de junio de 2026). Pasado ese momento, no se aceptarán cambios."
+  },
+  {
+    titulo: "🏆 Predicciones fase eliminatoria",
+    contenido: "Una vez iniciado el torneo, se abrirá una ventana para predecir la fase eliminatoria completa — desde 16vos de final hasta la Final. Dicha ventana cerrará al pitazo inicial del primer partido de 16vos de final (28 de junio de 2026)."
+  },
+  {
+    titulo: "📊 Sistema de puntuación",
+    contenido: "1 punto por cada acierto, tanto en grupos como en eliminatorias. En eliminatorias se puntúa por acertar quién avanza de cada llave, independientemente del rival."
+  },
+  {
+    titulo: "⚖️ Desempate",
+    contenido: "En caso de empate en puntos, gana quien haya acertado al goleador del torneo. Si persiste el empate, el premio se divide en partes iguales."
+  },
+  {
+    titulo: "🥇 Premio",
+    contenido: "El ganador se lleva el 100% del pozo acumulado. No hay segundo ni tercer lugar."
+  },
+  {
+    titulo: "🎯 Conducta",
+    contenido: "Cero lloradera, cero galleta. 🏆"
+  },
+];
+
 export default function QuinielaApp({
   participante, partidos, prediccionesIniciales, posiciones,
   goleadores, deadline, deadlineElim, llaves, prediccionesElimIniciales
 }: Props) {
-  const [tab, setTab] = useState<"groups" | "knockout" | "leaderboard" | "tabla">("groups");
+  const [tab, setTab] = useState<"groups" | "knockout" | "leaderboard" | "tabla" | "reglamento">("groups");
   const [preds, setPreds] = useState<Record<string, string>>(
     Object.fromEntries(prediccionesIniciales.map(p => [p.partido_id, p.prediccion]))
   );
@@ -118,22 +149,15 @@ export default function QuinielaApp({
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = filterGrupo === "ALL" ? partidos : partidos.filter(p => p.grupo === filterGrupo);
 
-  // Función clave: obtiene los equipos a mostrar en una llave basándose en picks previos
   const getEquiposParaLlave = useCallback((llave: Llave): { local: string | null; visitante: string | null; esProjection: boolean } => {
-    // Si ya tiene equipos reales definidos por el admin, usarlos
     if (llave.equipo_local && llave.equipo_visitante) {
       return { local: llave.equipo_local, visitante: llave.equipo_visitante, esProjection: false };
     }
-
-    // Buscar las llaves anteriores que alimentan a esta
     const llavesAnteriores = llaves.filter(l => l.llave_siguiente_id === llave.id);
     if (llavesAnteriores.length !== 2) return { local: null, visitante: null, esProjection: false };
-
     const pickLocal = predsElim[llavesAnteriores[0].id] || null;
     const pickVisitante = predsElim[llavesAnteriores[1].id] || null;
-
     if (!pickLocal && !pickVisitante) return { local: null, visitante: null, esProjection: false };
-
     return { local: pickLocal, visitante: pickVisitante, esProjection: true };
   }, [llaves, predsElim]);
 
@@ -180,7 +204,6 @@ export default function QuinielaApp({
   const totalPreds = Object.keys(preds).length;
   const completion = partidos.length > 0 ? Math.round((totalPreds / partidos.length) * 100) : 0;
   const miPosicion = posiciones.findIndex(p => p.id === participante.id) + 1;
-
   const llavesRonda = llaves.filter(l => l.ronda === activeRonda);
 
   return (
@@ -252,6 +275,7 @@ export default function QuinielaApp({
             { key: "knockout", label: "Eliminatorias", icon: Trophy },
             { key: "leaderboard", label: "Posiciones", icon: TrendingUp },
             { key: "tabla", label: "Predicciones", icon: Eye },
+            { key: "reglamento", label: "Reglamento", icon: BookOpen },
           ].map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key as typeof tab)}
               className={`relative px-4 py-2.5 font-bold text-xs tracking-wide flex items-center gap-1.5 transition-colors flex-shrink-0 ${tab === key ? "text-stone-100" : "text-stone-500 hover:text-stone-300"}`}>
@@ -282,6 +306,38 @@ export default function QuinielaApp({
 
         {tab === "groups" && (
           <div>
+            {/* Banner de bienvenida */}
+            <div className="bg-gradient-to-br from-amber-950/60 to-stone-900/60 border border-amber-700/40 rounded-2xl p-5 mb-5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-amber-400/[0.03] rounded-full blur-2xl" />
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">⚽</span>
+                  <span className="text-[10px] font-bold tracking-widest text-amber-400 uppercase">Quiniela Mundial 2026</span>
+                </div>
+                <h1 className="text-xl font-black text-stone-100 mb-1">
+                  Bienvenido al <span className="text-amber-400">Grupo Deportes</span>
+                </h1>
+                <p className="text-xs text-stone-400 mb-4 italic">"Cero lloradera, cero galleta." 🏆</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-800">
+                    <div className="text-[9px] text-stone-500 uppercase tracking-wider mb-1">Inicio</div>
+                    <div className="text-sm font-black text-stone-100">11 Jun</div>
+                    <div className="text-[10px] text-stone-400">2026</div>
+                  </div>
+                  <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-800">
+                    <div className="text-[9px] text-stone-500 uppercase tracking-wider mb-1">Inscripción</div>
+                    <div className="text-sm font-black text-emerald-400">$20</div>
+                    <div className="text-[10px] text-stone-400">USD</div>
+                  </div>
+                  <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-800">
+                    <div className="text-[9px] text-stone-500 uppercase tracking-wider mb-1">Premio</div>
+                    <div className="text-sm font-black text-amber-400">100%</div>
+                    <div className="text-[10px] text-stone-400">del pozo</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <div>
                 <h2 className="text-lg font-black text-stone-100">Fase de grupos</h2>
@@ -638,6 +694,21 @@ export default function QuinielaApp({
             deadlineGrupos={deadline}
             deadlineElim={deadlineElim}
           />
+        )}
+
+        {tab === "reglamento" && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-black text-stone-100 mb-1">Reglamento</h2>
+              <p className="text-xs text-stone-500">Quiniela Mundial 2026 · Grupo Deportes</p>
+            </div>
+            {REGLAMENTO.map(({ titulo, contenido }) => (
+              <div key={titulo} className="bg-stone-900/40 border border-stone-800 rounded-2xl p-4">
+                <h3 className="font-black text-sm text-stone-100 mb-2">{titulo}</h3>
+                <p className="text-xs text-stone-400 leading-relaxed">{contenido}</p>
+              </div>
+            ))}
+          </div>
         )}
       </main>
     </div>
