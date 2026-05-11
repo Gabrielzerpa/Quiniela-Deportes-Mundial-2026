@@ -21,9 +21,17 @@ export default async function AdminPage() {
     .select("*")
     .order("fecha", { ascending: true });
 
-  const { data: posiciones } = await supabase
-    .from("tabla_posiciones")
-    .select("*");
+const participantes = (posiciones || []).map(p => {
+  const info = (participantesInfo || []).find(i => i.id === p.id);
+  return info ? {
+    ...p,
+    email: info.email || "",
+    goleador_pick: info.goleador_pick || null,
+    pagado: info.pagado || false,
+    es_admin: info.es_admin || false,
+  } : null;
+}).filter(Boolean);
+  
 
 const { data: participantesInfo } = await supabase
   .from("participantes")
