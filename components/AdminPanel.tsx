@@ -65,7 +65,7 @@ const RONDAS = ["16vos", "8vos", "4tos", "semi", "final"];
 export default function AdminPanel({ partidos: partidosIniciales, participantes: participantesIniciales, llaves: llavesIniciales, deadlineGrupos, prediccionesVisibles: prediccionesVisiblesIniciales }: Props) {
   const [tab, setTab] = useState<"resultados" | "participantes" | "eliminatorias" | "predicciones">("resultados");
   const [partidos, setPartidos] = useState(partidosIniciales);
-  const [participantes, setParticipantes] = useState(participantesIniciales.map(p => ({ ...p, pagado: false })));
+  const [participantes, setParticipantes] = useState(participantesIniciales);
   const [llaves, setLlaves] = useState(llavesIniciales);
   const [saving, setSaving] = useState<string | null>(null);
   const [filterGrupo, setFilterGrupo] = useState("ALL");
