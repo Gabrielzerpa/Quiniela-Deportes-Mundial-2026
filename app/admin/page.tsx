@@ -25,9 +25,10 @@ export default async function AdminPage() {
     .from("tabla_posiciones")
     .select("*");
 
-  const { data: participantesInfo } = await supabase
-    .from("participantes")
-    .select("id, nombre, email, goleador_pick, pagado, es_admin");
+const { data: participantesInfo } = await supabase
+  .from("participantes")
+  .select("id, nombre, email, goleador_pick, pagado, es_admin")
+  .eq("activo", true);
 
   const { data: llaves } = await supabase
     .from("llaves_eliminatorias")
