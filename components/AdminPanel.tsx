@@ -163,8 +163,8 @@ const handleResetResultados = async () => {
     if (!error) setParticipantes(prev => prev.map(p => p.id === participanteId ? { ...p, pagado: !p.pagado } : p));
   };
 
-  const handleEliminar = async (participanteId: string) => {
-    const { error } = await supabase.from("participantes").delete().eq("id", participanteId);
+const handleEliminar = async (participanteId: string) => {
+    const { error } = await supabase.from("participantes").update({ activo: false }).eq("id", participanteId);
     if (!error) { setParticipantes(prev => prev.filter(p => p.id !== participanteId)); setConfirmDelete(null); }
   };
 
