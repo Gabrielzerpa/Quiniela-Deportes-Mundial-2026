@@ -12,7 +12,7 @@ type Partido = {
 };
 type Participante = {
   id: string; nombre: string; email: string; aciertos_total: number;
-  acerto_goleador: number; goleador_pick: string | null;
+  acerto_goleador: number; goleador_pick: string | null; pagado: boolean;
 };
 type Llave = {
   id: string; ronda: string; fecha: string;
