@@ -41,4 +41,25 @@ export default async function AdminPage() {
     .single();
 
   const participantes = (posiciones || []).map(p => {
-    const info = (participantesInfo || []).find(
+    const info = (participantesInfo || []).find(i => i.id === p.id);
+    return info ? {
+      ...p,
+      email: info.email || "",
+      goleador_pick: info.goleador_pick || null,
+      pagado: info.pagado || false,
+      es_admin: info.es_admin || false,
+    } : null;
+  }).filter(Boolean);
+
+  const deadlineGrupos = "2026-06-11T16:00:00-06:00";
+
+  return (
+    <AdminPanel
+      partidos={partidos || []}
+      participantes={participantes as any}
+      llaves={llaves || []}
+      deadlineGrupos={deadlineGrupos}
+      prediccionesVisibles={deadlines?.predicciones_visibles || false}
+    />
+  );
+}
