@@ -21,22 +21,14 @@ export default async function AdminPage() {
     .select("*")
     .order("fecha", { ascending: true });
 
-const participantes = (posiciones || []).map(p => {
-  const info = (participantesInfo || []).find(i => i.id === p.id);
-  return info ? {
-    ...p,
-    email: info.email || "",
-    goleador_pick: info.goleador_pick || null,
-    pagado: info.pagado || false,
-    es_admin: info.es_admin || false,
-  } : null;
-}).filter(Boolean);
-  
+  const { data: posiciones } = await supabase
+    .from("tabla_posiciones")
+    .select("*");
 
-const { data: participantesInfo } = await supabase
-  .from("participantes")
-  .select("id, nombre, email, goleador_pick, pagado, es_admin")
-  .eq("activo", true);
+  const { data: participantesInfo } = await supabase
+    .from("participantes")
+    .select("id, nombre, email, goleador_pick, pagado, es_admin")
+    .eq("activo", true);
 
   const { data: llaves } = await supabase
     .from("llaves_eliminatorias")
@@ -49,25 +41,4 @@ const { data: participantesInfo } = await supabase
     .single();
 
   const participantes = (posiciones || []).map(p => {
-    const info = (participantesInfo || []).find(i => i.id === p.id);
-    return {
-      ...p,
-      email: info?.email || "",
-      goleador_pick: info?.goleador_pick || null,
-      pagado: info?.pagado || false,
-      es_admin: info?.es_admin || false,
-    };
-  });
-
-  const deadlineGrupos = "2026-06-11T16:00:00-06:00";
-
-  return (
-    <AdminPanel
-      partidos={partidos || []}
-      participantes={participantes}
-      llaves={llaves || []}
-      deadlineGrupos={deadlineGrupos}
-      prediccionesVisibles={deadlines?.predicciones_visibles || false}
-    />
-  );
-}
+    const info = (participantesInfo || []).find(
