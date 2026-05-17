@@ -99,15 +99,11 @@ const handleResetResultados = async () => {
     const [{ error: e1 }, { error: e2 }, { error: e3 }] = await Promise.all([
       supabase.from("partidos").update({ resultado: null, updated_at: new Date().toISOString() }).neq("id", ""),
       supabase.from("llaves_eliminatorias").update({ ganador: null, updated_at: new Date().toISOString() }).neq("id", ""),
-      supabase.from("llaves_eliminatorias").update({ equipo_local: null, equipo_visitante: null, updated_at: new Date().toISOString() }).eq("ronda", "16vos"),
+      supabase.from("llaves_eliminatorias").update({ equipo_local: null, equipo_visitante: null, updated_at: new Date().toISOString() }).in("ronda", ["16vos", "8vos", "4tos", "semi", "final"]),
     ]);
     if (!e1 && !e2 && !e3) {
       setPartidos(prev => prev.map(p => ({ ...p, resultado: null })));
-      setLlaves(prev => prev.map(l => ({
-        ...l,
-        ganador: null,
-        ...(l.ronda === "16vos" ? { equipo_local: null, equipo_visitante: null } : {}),
-      })));
+      setLlaves(prev => prev.map(l => ({ ...l, ganador: null, equipo_local: null, equipo_visitante: null })));
     }
     setConfirmReset(false);
     setResetting(false);
