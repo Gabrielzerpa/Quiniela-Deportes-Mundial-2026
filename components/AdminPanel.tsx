@@ -96,7 +96,7 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
 
 const handleResetResultados = async () => {
     setResetting(true);
-    cconst [{ error: e1 }, { error: e2 }] = await Promise.all([
+const [{ error: e1 }, { error: e2 }] = await Promise.all([
   supabase.from("partidos").update({ resultado: null, updated_at: new Date().toISOString() }).neq("id", ""),
   supabase.from("llaves_eliminatorias").update({ ganador: null, equipo_local: null, equipo_visitante: null, updated_at: new Date().toISOString() }).neq("id", ""),
 ]);
