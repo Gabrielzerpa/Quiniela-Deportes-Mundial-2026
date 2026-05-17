@@ -96,13 +96,12 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
 
 const handleResetResultados = async () => {
     setResetting(true);
-    const [{ error: e1 }, { error: e2 }, { error: e3 }] = await Promise.all([
-      supabase.from("partidos").update({ resultado: null, updated_at: new Date().toISOString() }).neq("id", ""),
-      supabase.from("llaves_eliminatorias").update({ ganador: null, updated_at: new Date().toISOString() }).neq("id", ""),
-      supabase.from("llaves_eliminatorias").update({ equipo_local: null, equipo_visitante: null, updated_at: new Date().toISOString() }).in("ronda", ["16vos", "8vos", "4tos", "semi", "final"]),
-    ]);
-    if (!e1 && !e2 && !e3) {
-      setPartidos(prev => prev.map(p => ({ ...p, resultado: null })));
+    cconst [{ error: e1 }, { error: e2 }] = await Promise.all([
+  supabase.from("partidos").update({ resultado: null, updated_at: new Date().toISOString() }).neq("id", ""),
+  supabase.from("llaves_eliminatorias").update({ ganador: null, equipo_local: null, equipo_visitante: null, updated_at: new Date().toISOString() }).neq("id", ""),
+]);
+if (!e1 && !e2) {
+  setPartidos(prev => prev.map(p => ({ ...p, resultado: null })));
       setLlaves(prev => prev.map(l => ({ ...l, ganador: null, equipo_local: null, equipo_visitante: null })));
     }
     setConfirmReset(false);
