@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Trophy, Lock, Clock, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut, ChevronRight, BookOpen, Pencil } from "lucide-react";
+import { Trophy, Lock, Clock, Sparkles, Target, TrendingUp, Eye, EyeOff, Goal, LogOut, ChevronRight, BookOpen, Pencil, KeyRound } from "lucide-react";
 import TablaPredicciones from "@/components/components/TablaPrediciones";
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
@@ -151,6 +151,12 @@ export default function QuinielaApp({
   const [nombreInicial, setNombreInicial] = useState("");
   const [guardandoNombreInicial, setGuardandoNombreInicial] = useState(false);
   const [errorNombreInicial, setErrorNombreInicial] = useState("");
+  const [mostrarModalPassword, setMostrarModalPassword] = useState(false);
+  const [passwordNueva, setPasswordNueva] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [guardandoPassword, setGuardandoPassword] = useState(false);
+  const [errorPassword, setErrorPassword] = useState("");
+  const [successPassword, setSuccessPassword] = useState(false);
   const countdown = useCountdown(deadline);
   const countdownElim = useCountdown(deadlineElim);
   const supabase = createClient();
@@ -218,7 +224,7 @@ export default function QuinielaApp({
     }
     const { error } = await supabase
       .from("participantes")
-      .update({ nombre })
+      .update({ nombre, nombre_confirmado: true })
       .eq("id", participante.id);
     if (!error) {
       setNombreMostrado(nombre);
@@ -226,6 +232,25 @@ export default function QuinielaApp({
       setMostrarModalNombre(false);
     }
     setGuardandoNombreInicial(false);
+  };
+
+  const handleCambiarPassword = async () => {
+    if (passwordNueva !== passwordConfirm) { setErrorPassword("Las contraseñas no coinciden"); return; }
+    if (passwordNueva.length < 6) { setErrorPassword("Mínimo 6 caracteres"); return; }
+    setGuardandoPassword(true);
+    setErrorPassword("");
+    const { error } = await supabase.auth.updateUser({ password: passwordNueva });
+    setGuardandoPassword(false);
+    if (error) setErrorPassword(error.message);
+    else {
+      setSuccessPassword(true);
+      setTimeout(() => {
+        setMostrarModalPassword(false);
+        setSuccessPassword(false);
+        setPasswordNueva("");
+        setPasswordConfirm("");
+      }, 2000);
+    }
   };
 
   const handlePredict = useCallback(async (partidoId: string, value: string) => {
@@ -276,7 +301,7 @@ export default function QuinielaApp({
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "system-ui, sans-serif" }}>
 
-      {/* Modal de nombre inicial */}
+      {/* Modal nombre inicial */}
       {mostrarModalNombre && (
         <div className="fixed inset-0 bg-stone-950/90 backdrop-blur z-50 flex items-center justify-center p-4">
           <div className="bg-stone-900 border border-stone-700 rounded-2xl p-6 w-full max-w-sm">
@@ -290,7 +315,7 @@ export default function QuinielaApp({
               </div>
             </div>
             <p className="text-xs text-stone-400 mb-4 leading-relaxed">
-              Elige el nombre con el que aparecerás en la quiniela. Este será visible para todos los participantes.
+              Elige el nombre con el que aparecerás en la quiniela. Será visible para todos los participantes.
             </p>
             <input
               type="text"
@@ -302,14 +327,51 @@ export default function QuinielaApp({
               autoFocus
               className="w-full bg-stone-950/60 border border-stone-700 rounded-lg px-4 py-2.5 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500/60 mb-3"
             />
-            {errorNombreInicial && (
-              <p className="text-xs text-red-400 mb-3">{errorNombreInicial}</p>
-            )}
+            {errorNombreInicial && <p className="text-xs text-red-400 mb-3">{errorNombreInicial}</p>}
             <button onClick={handleGuardarNombreInicial} disabled={guardandoNombreInicial}
               className="w-full py-2.5 bg-amber-400 text-stone-900 rounded-lg font-black text-sm hover:bg-amber-300 transition disabled:opacity-50">
               {guardandoNombreInicial ? "Guardando..." : "Entrar a la quiniela 🏆"}
             </button>
             <p className="text-[10px] text-stone-600 text-center mt-3">Cero lloradera, cero galleta.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal cambiar contraseña */}
+      {mostrarModalPassword && (
+        <div className="fixed inset-0 bg-stone-950/90 backdrop-blur z-50 flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-700 rounded-2xl p-6 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-black text-stone-100 text-base">Cambiar contraseña</h2>
+              <button onClick={() => { setMostrarModalPassword(false); setErrorPassword(""); setSuccessPassword(false); setPasswordNueva(""); setPasswordConfirm(""); }}
+                className="text-stone-500 hover:text-stone-300 transition text-lg">✕</button>
+            </div>
+            {successPassword ? (
+              <div className="text-center py-4">
+                <div className="text-4xl mb-2">✅</div>
+                <p className="text-sm font-bold text-emerald-400">¡Contraseña actualizada!</p>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <label className="text-[10px] font-bold tracking-widest text-stone-500 uppercase mb-2 block">Nueva contraseña</label>
+                  <input type="password" value={passwordNueva} onChange={e => setPasswordNueva(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="w-full bg-stone-950/60 border border-stone-700 rounded-lg px-4 py-2.5 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500/60" />
+                </div>
+                <div className="mb-4">
+                  <label className="text-[10px] font-bold tracking-widest text-stone-500 uppercase mb-2 block">Confirmar contraseña</label>
+                  <input type="password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}
+                    placeholder="Repite la contraseña"
+                    className="w-full bg-stone-950/60 border border-stone-700 rounded-lg px-4 py-2.5 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500/60" />
+                </div>
+                {errorPassword && <p className="text-xs text-red-400 mb-3">{errorPassword}</p>}
+                <button onClick={handleCambiarPassword} disabled={guardandoPassword}
+                  className="w-full py-2.5 bg-amber-400 text-stone-900 rounded-lg font-black text-sm hover:bg-amber-300 transition disabled:opacity-50">
+                  {guardandoPassword ? "Guardando..." : "Guardar nueva contraseña"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -353,11 +415,13 @@ export default function QuinielaApp({
                 {errorNombre && <span className="text-[10px] text-red-400">{errorNombre}</span>}
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
                 <span className="text-xs font-bold text-stone-300 hidden sm:block">{nombreMostrado}</span>
-                <button onClick={() => setEditandoNombre(true)}
-                  className="p-1.5 text-stone-500 hover:text-amber-400 transition">
+                <button onClick={() => setEditandoNombre(true)} className="p-1.5 text-stone-500 hover:text-amber-400 transition">
                   <Pencil size={13} />
+                </button>
+                <button onClick={() => setMostrarModalPassword(true)} className="p-1.5 text-stone-500 hover:text-amber-400 transition">
+                  <KeyRound size={13} />
                 </button>
               </div>
             )}
@@ -450,9 +514,9 @@ export default function QuinielaApp({
                   <span className="text-[10px] font-bold tracking-widest text-amber-400 uppercase">Quiniela Mundial 2026</span>
                 </div>
                 <h1 className="text-xl font-black text-stone-100 mb-1">
-                Bienvenido <span className="text-amber-400">Grupo Deportes</span>
-                <div className="text-xs font-bold text-stone-400 mt-1">Táchira · Panas de Lara · México y el mundo</div>
+                  Bienvenido <span className="text-amber-400">Grupo Deportes</span>
                 </h1>
+                <div className="text-xs font-bold text-stone-400 mt-1 mb-3">Táchira · Panas de Lara · México y el mundo</div>
                 <p className="text-xs text-stone-400 mb-4 italic">"Cero lloradera, cero galleta." 🏆</p>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-800">
