@@ -24,9 +24,17 @@ export default async function HomePage() {
     .select("*")
     .eq("participante_id", user.id);
 
-  const { data: posiciones } = await supabase
+const { data: posiciones } = await supabase
     .from("tabla_posiciones")
     .select("*");
+
+  const { data: participantesActivos } = await supabase
+    .from("participantes")
+    .select("id")
+    .eq("activo", true);
+
+  const idsActivos = new Set((participantesActivos || []).map(p => p.id));
+  const posicionesFiltradas = (posiciones || []).filter(p => idsActivos.has(p.id));
 
   const { data: goleadores } = await supabase
     .from("goleadores_candidatos")
@@ -52,7 +60,7 @@ export default async function HomePage() {
       participante={participante}
       partidos={partidos || []}
       prediccionesIniciales={predicciones || []}
-      posiciones={posiciones || []}
+      posiciones={posicionesFiltradas}
       goleadores={goleadores || []}
       deadline={deadlines?.fase_grupos}
       deadlineElim={deadlines?.fase_eliminatorias}
