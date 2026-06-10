@@ -62,9 +62,10 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
     if (!puedeVerTabla) { setLoading(false); return; }
     const fetchPredicciones = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("predicciones_grupos")
-        .select("participante_id, partido_id, prediccion");
+const { data } = await supabase
+  .from("predicciones_grupos")
+  .select("participante_id, partido_id, prediccion")
+  .limit(5000);
       setPredicciones(data || []);
       setLoading(false);
     };
