@@ -58,19 +58,28 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
     fetchVisibilidad();
   }, []);
 
-  useEffect(() => {
+useEffect(() => {
     if (!puedeVerTabla) { setLoading(false); return; }
     const fetchPredicciones = async () => {
       setLoading(true);
-const { data } = await supabase
-  .from("predicciones_grupos")
-  .select("participante_id, partido_id, prediccion")
-  .limit(5000);
-      setPredicciones(data || []);
+      let todas: Prediccion[] = [];
+      let desde = 0;
+      const tamano = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from("predicciones_grupos")
+          .select("participante_id, partido_id, prediccion")
+          .range(desde, desde + tamano - 1);
+        if (error || !data || data.length === 0) break;
+        todas = todas.concat(data);
+        if (data.length < tamano) break;
+        desde += tamano;
+      }
+      setPredicciones(todas);
       setLoading(false);
     };
     fetchPredicciones();
-}, [puedeVerTabla, prediccionesVisibles]);
+  }, [puedeVerTabla, prediccionesVisibles]);
   
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = filterGrupo === "ALL"
