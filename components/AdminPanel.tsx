@@ -28,6 +28,7 @@ interface Props {
   llaves: Llave[];
   deadlineGrupos: string;
   prediccionesVisibles: boolean;
+  eliminatoriasAbiertas: boolean;
 }
 
 const TEAMS: Record<string, { name: string; flag: string }> = {
@@ -62,8 +63,7 @@ const TEAMS: Record<string, { name: string; flag: string }> = {
 const TEAM_OPTIONS = Object.entries(TEAMS).map(([code, t]) => ({ code, ...t }));
 const RONDAS = ["16vos", "8vos", "4tos", "semi", "final"];
 
-export default function AdminPanel({ partidos: partidosIniciales, participantes: participantesIniciales, llaves: llavesIniciales, deadlineGrupos, prediccionesVisibles: prediccionesVisiblesIniciales }: Props) {
-  const [tab, setTab] = useState<"resultados" | "participantes" | "eliminatorias" | "predicciones">("resultados");
+export default function AdminPanel({ partidos: partidosIniciales, participantes: participantesIniciales, llaves: llavesIniciales, deadlineGrupos, prediccionesVisibles: prediccionesVisiblesIniciales, eliminatoriasAbiertas: eliminatoriasAbiertasIniciales }: Props) {  const [tab, setTab] = useState<"resultados" | "participantes" | "eliminatorias" | "predicciones">("resultados");
   const [partidos, setPartidos] = useState(partidosIniciales);
   const [participantes, setParticipantes] = useState(participantesIniciales);
   const [llaves, setLlaves] = useState(llavesIniciales);
@@ -78,10 +78,12 @@ export default function AdminPanel({ partidos: partidosIniciales, participantes:
   const [editingLlave, setEditingLlave] = useState<string | null>(null);
   const [llaveLocal, setLlaveLocal] = useState("");
   const [llaveVisitante, setLlaveVisitante] = useState("");
-  const [prediccionesVisibles, setPrediccionesVisibles] = useState(prediccionesVisiblesIniciales);
+const [prediccionesVisibles, setPrediccionesVisibles] = useState(prediccionesVisiblesIniciales);
+  const [eliminatoriasAbiertas, setEliminatoriasAbiertas] = useState(eliminatoriasAbiertasIniciales);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [togglingVisibilidad, setTogglingVisibilidad] = useState(false);
+  const [togglingEliminatorias, setTogglingEliminatorias] = useState(false);
   const supabase = createClient();
 
   const deadlinePasado = new Date() >= new Date(deadlineGrupos);
@@ -115,7 +117,14 @@ if (!e1 && !e2) {
     if (!error) setPrediccionesVisibles(nuevo);
     setTogglingVisibilidad(false);
   };
-
+                                                                                                                                                                                                                                                                        
+const handleToggleEliminatorias = async () => {
+    setTogglingEliminatorias(true);
+    const nuevo = !eliminatoriasAbiertas;
+    const { error } = await supabase.from("deadlines").update({ eliminatorias_abiertas: nuevo }).eq("id", 1);
+    if (!error) setEliminatoriasAbiertas(nuevo);
+    setTogglingEliminatorias(false);
+  };
   const handleResultado = async (partidoId: string, resultado: string) => {
     setSaving(partidoId);
     const nuevoResultado = partidos.find(p => p.id === partidoId)?.resultado === resultado ? null : resultado;
@@ -246,7 +255,17 @@ const handleEliminar = async (participanteId: string) => {
             {prediccionesVisibles ? <Eye size={13} /> : <EyeOff size={13} />}
             {togglingVisibilidad ? "Guardando..." : prediccionesVisibles ? "Predicciones visibles" : "Predicciones ocultas"}
           </button>
-
+        {/* Toggle eliminatorias abiertas */}
+          <button onClick={handleToggleEliminatorias} disabled={togglingEliminatorias}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs border transition-all ${
+              eliminatoriasAbiertas
+                ? "bg-purple-400/20 border-purple-700/40 text-purple-300 hover:bg-purple-400/30"
+                : "bg-stone-900/60 border-stone-700 text-stone-400 hover:border-stone-600"
+            } disabled:opacity-50`}>
+            <Target size={13} />
+            {togglingEliminatorias ? "Guardando..." : eliminatoriasAbiertas ? "Eliminatorias abiertas" : "Eliminatorias cerradas"}
+          </button>
+          
           {/* Reset resultados */}
           {confirmReset ? (
             <div className="flex items-center gap-2">
