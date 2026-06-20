@@ -53,13 +53,14 @@ export default async function AdminPage() {
 
   const deadlineGrupos = "2026-06-11T16:00:00-06:00";
 
-  return (
+return (
     <AdminPanel
       partidos={partidos || []}
       participantes={participantes as any}
       llaves={llaves || []}
       deadlineGrupos={deadlineGrupos}
       prediccionesVisibles={deadlines?.predicciones_visibles || false}
+      eliminatoriasAbiertas={deadlines?.eliminatorias_abiertas ?? true}
     />
   );
 }
