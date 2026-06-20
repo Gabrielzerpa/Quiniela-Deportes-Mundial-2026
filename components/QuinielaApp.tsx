@@ -63,6 +63,7 @@ interface Props {
   deadlineElim: string;
   llaves: Llave[];
   prediccionesElimIniciales: PrediccionElim[];
+  eliminatoriasAbiertas: boolean;
 }
 
 function useCountdown(target: string) {
@@ -126,7 +127,7 @@ const REGLAMENTO = [
 
 export default function QuinielaApp({
   participante, partidos, prediccionesIniciales, posiciones,
-  goleadores, deadline, deadlineElim, llaves, prediccionesElimIniciales
+  goleadores, deadline, deadlineElim, llaves, prediccionesElimIniciales, eliminatoriasAbiertas
 }: Props) {
   const [tab, setTab] = useState<"groups" | "knockout" | "leaderboard" | "tabla" | "reglamento">("groups");
   const [preds, setPreds] = useState<Record<string, string>>(
@@ -136,6 +137,11 @@ export default function QuinielaApp({
     Object.fromEntries(prediccionesElimIniciales.map(p => [p.llave_id, p.equipo_pick]))
   );
   const [goleadorPick, setGoleadorPick] = useState(participante.goleador_pick || "");
+  const [goleadorCustom, setGoleadorCustom] = useState(
+    participante.goleador_pick && !goleadores.find(g => g.nombre === participante.goleador_pick)
+      ? participante.goleador_pick
+      : ""
+  );
   const [saving, setSaving] = useState<string | null>(null);
   const [showOthers, setShowOthers] = useState(false);
   const [filterGrupo, setFilterGrupo] = useState("ALL");
@@ -161,7 +167,7 @@ export default function QuinielaApp({
   const countdownElim = useCountdown(deadlineElim);
   const supabase = createClient();
   const locked = countdown.expired;
-  const lockedElim = countdownElim.expired;
+  const lockedElim = countdownElim.expired || !eliminatoriasAbiertas;
 
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = filterGrupo === "ALL" ? partidos : partidos.filter(p => p.grupo === filterGrupo);
@@ -684,21 +690,15 @@ export default function QuinielaApp({
                   <input
                     type="text"
                     placeholder="Nombre del jugador..."
-                    defaultValue={goleadorPick === "otro" ? "" : goleadorPick}
-                    id="custom-scorer"
+                    value={goleadorCustom}
+                    onChange={e => setGoleadorCustom(e.target.value)}
                     onKeyDown={e => {
-                      if (e.key === "Enter") {
-                        const val = (e.target as HTMLInputElement).value.trim();
-                        if (val) handleGoleador(val);
-                      }
+                      if (e.key === "Enter" && goleadorCustom.trim()) handleGoleador(goleadorCustom.trim());
                     }}
                     className="flex-1 bg-stone-950/60 border border-amber-700/40 rounded-lg px-4 py-2.5 text-sm text-stone-100 placeholder:text-stone-600 focus:outline-none focus:border-amber-500/60"
                   />
                   <button
-                    onClick={() => {
-                      const input = document.getElementById("custom-scorer") as HTMLInputElement;
-                      if (input?.value.trim()) handleGoleador(input.value.trim());
-                    }}
+                    onClick={() => { if (goleadorCustom.trim()) handleGoleador(goleadorCustom.trim()); }}
                     className="px-4 py-2.5 bg-amber-400 text-stone-900 rounded-lg font-bold text-xs hover:bg-amber-300 transition">
                     Guardar
                   </button>
