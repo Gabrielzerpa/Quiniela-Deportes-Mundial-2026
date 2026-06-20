@@ -55,7 +55,7 @@ const { data: posiciones } = await supabase
     .select("*")
     .eq("participante_id", user.id);
 
-  return (
+return (
     <QuinielaApp
       participante={participante}
       partidos={partidos || []}
@@ -66,6 +66,7 @@ const { data: posiciones } = await supabase
       deadlineElim={deadlines?.fase_eliminatorias}
       llaves={llaves || []}
       prediccionesElimIniciales={prediccionesElim || []}
+      eliminatoriasAbiertas={deadlines?.eliminatorias_abiertas ?? true}
     />
   );
 }
