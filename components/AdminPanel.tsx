@@ -520,7 +520,7 @@ const handleEliminar = async (participanteId: string) => {
         )}
 
         {tab === "predicciones" && (
-          <TablaPredicciones
+         <TablaPredicciones
   partidos={partidos}
   participantes={participantes.map(p => ({ id: p.id, nombre: p.nombre }))}
   esAdmin={true}
