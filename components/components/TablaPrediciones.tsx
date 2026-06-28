@@ -89,12 +89,24 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
   const puedeVerTabla = esAdmin || deadlineGruposPasado || prediccionesVisibles;
   const puedeVerElim = esAdmin || deadlineElimPasado;
 
-  useEffect(() => {
-    const fetchVisibilidad = async () => {
-      const { data } = await supabase.from("deadlines").select("predicciones_visibles").single();
-      if (data) setPrediccionesVisibles(data.predicciones_visibles || false);
+useEffect(() => {
+    const fetchElim = async () => {
+      let todas: PrediccionElim[] = [];
+      let desde = 0;
+      const tamano = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from("predicciones_eliminatorias")
+          .select("participante_id, llave_id, equipo_pick")
+          .range(desde, desde + tamano - 1);
+        if (error || !data || data.length === 0) break;
+        todas = todas.concat(data);
+        if (data.length < tamano) break;
+        desde += tamano;
+      }
+      setPrediccionesElim(todas);
     };
-    fetchVisibilidad();
+    fetchElim();
   }, []);
 
   useEffect(() => {
