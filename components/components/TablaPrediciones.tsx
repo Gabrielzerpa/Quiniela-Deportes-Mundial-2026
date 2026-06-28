@@ -31,6 +31,7 @@ interface Props {
   deadlineGrupos: string;
   deadlineElim: string;
   llaves: Llave[];
+  eliminatoriasAbiertas?: boolean;
 }
 
 const TEAMS: Record<string, string> = {
@@ -74,7 +75,7 @@ const RONDAS_LABEL: Record<string, string> = {
   "final": "Final",
 };
 
-export default function TablaPredicciones({ partidos, participantes, esAdmin, deadlineGrupos, deadlineElim, llaves }: Props) {
+export default function TablaPredicciones({ partidos, participantes, esAdmin, deadlineGrupos, deadlineElim, llaves, eliminatoriasAbiertas = true }: Props) {
   const [tabVista, setTabVista] = useState<"grupos" | "eliminatorias">("grupos");
   const [predicciones, setPredicciones] = useState<Prediccion[]>([]);
   const [prediccionesElim, setPrediccionesElim] = useState<PrediccionElim[]>([]);
@@ -87,26 +88,14 @@ export default function TablaPredicciones({ partidos, participantes, esAdmin, de
   const deadlineGruposPasado = ahora >= new Date(deadlineGrupos);
   const deadlineElimPasado = ahora >= new Date(deadlineElim);
   const puedeVerTabla = esAdmin || deadlineGruposPasado || prediccionesVisibles;
-  const puedeVerElim = esAdmin || deadlineElimPasado;
+  const puedeVerElim = esAdmin || deadlineElimPasado || !eliminatoriasAbiertas;
 
-useEffect(() => {
-    const fetchElim = async () => {
-      let todas: PrediccionElim[] = [];
-      let desde = 0;
-      const tamano = 1000;
-      while (true) {
-        const { data, error } = await supabase
-          .from("predicciones_eliminatorias")
-          .select("participante_id, llave_id, equipo_pick")
-          .range(desde, desde + tamano - 1);
-        if (error || !data || data.length === 0) break;
-        todas = todas.concat(data);
-        if (data.length < tamano) break;
-        desde += tamano;
-      }
-      setPrediccionesElim(todas);
+  useEffect(() => {
+    const fetchVisibilidad = async () => {
+      const { data } = await supabase.from("deadlines").select("predicciones_visibles").single();
+      if (data) setPrediccionesVisibles(data.predicciones_visibles || false);
     };
-    fetchElim();
+    fetchVisibilidad();
   }, []);
 
   useEffect(() => {
@@ -133,15 +122,24 @@ useEffect(() => {
   }, [puedeVerTabla, prediccionesVisibles]);
 
   useEffect(() => {
-    if (!puedeVerElim) return;
     const fetchElim = async () => {
-      const { data } = await supabase
-        .from("predicciones_eliminatorias")
-        .select("participante_id, llave_id, equipo_pick");
-      if (data) setPrediccionesElim(data);
+      let todas: PrediccionElim[] = [];
+      let desde = 0;
+      const tamano = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from("predicciones_eliminatorias")
+          .select("participante_id, llave_id, equipo_pick")
+          .range(desde, desde + tamano - 1);
+        if (error || !data || data.length === 0) break;
+        todas = todas.concat(data);
+        if (data.length < tamano) break;
+        desde += tamano;
+      }
+      setPrediccionesElim(todas);
     };
     fetchElim();
-  }, [puedeVerElim]);
+  }, []);
 
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = filterGrupo === "ALL"
