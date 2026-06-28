@@ -521,12 +521,13 @@ const handleEliminar = async (participanteId: string) => {
 
         {tab === "predicciones" && (
           <TablaPredicciones
-            partidos={partidos}
-            participantes={participantes.map(p => ({ id: p.id, nombre: p.nombre }))}
-            esAdmin={true}
-            deadlineGrupos="2020-01-01"
-            deadlineElim="2020-01-01"
-          />
+  partidos={partidos}
+  participantes={participantes.map(p => ({ id: p.id, nombre: p.nombre }))}
+  esAdmin={true}
+  deadlineGrupos="2020-01-01"
+  deadlineElim="2020-01-01"
+  llaves={llaves}
+/>
         )}
       </main>
     </div>
