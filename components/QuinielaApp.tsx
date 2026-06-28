@@ -886,15 +886,16 @@ export default function QuinielaApp({
           </div>
         )}
 
-        {tab === "tabla" && (
-          <TablaPredicciones
-            partidos={partidos}
-            participantes={posiciones.map(p => ({ id: p.id, nombre: p.nombre }))}
-            esAdmin={participante.es_admin}
-            deadlineGrupos={deadline}
-            deadlineElim={deadlineElim}
-          />
-        )}
+{tab === "tabla" && (
+  <TablaPredicciones
+    partidos={partidos}
+    participantes={posiciones.map(p => ({ id: p.id, nombre: p.nombre }))}
+    esAdmin={participante.es_admin}
+    deadlineGrupos={deadline}
+    deadlineElim={deadlineElim}
+    llaves={llaves}
+  />
+)}
 
         {tab === "reglamento" && (
           <div className="space-y-4">
