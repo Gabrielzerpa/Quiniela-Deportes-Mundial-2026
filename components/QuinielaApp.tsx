@@ -167,7 +167,7 @@ export default function QuinielaApp({
   const countdownElim = useCountdown(deadlineElim);
   const supabase = createClient();
   const locked = countdown.expired;
-  const lockedElim = countdownElim.expired || !eliminatoriasAbiertas;
+  const lockedElim = !eliminatoriasAbiertas;
 
   const grupos = ["ALL", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
   const partidosFiltrados = filterGrupo === "ALL" ? partidos : partidos.filter(p => p.grupo === filterGrupo);
@@ -886,16 +886,17 @@ export default function QuinielaApp({
           </div>
         )}
 
-{tab === "tabla" && (
-  <TablaPredicciones
-    partidos={partidos}
-    participantes={posiciones.map(p => ({ id: p.id, nombre: p.nombre }))}
-    esAdmin={participante.es_admin}
-    deadlineGrupos={deadline}
-    deadlineElim={deadlineElim}
-    llaves={llaves}
-  />
-)}
+        {tab === "tabla" && (
+          <TablaPredicciones
+            partidos={partidos}
+            participantes={posiciones.map(p => ({ id: p.id, nombre: p.nombre }))}
+            esAdmin={participante.es_admin}
+            deadlineGrupos={deadline}
+            deadlineElim={deadlineElim}
+            llaves={llaves}
+            eliminatoriasAbiertas={eliminatoriasAbiertas}
+          />
+        )}
 
         {tab === "reglamento" && (
           <div className="space-y-4">
